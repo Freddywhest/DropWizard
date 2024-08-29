@@ -18,6 +18,18 @@
 
 ### [How to get and add query id](https://github.com/Freddywhest/DropWizard/blob/main/AddQueryId.md)
 
+## Config Files
+
+| File                            | Description                                                                                                                |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **`.env-general`**              | Config file for `DropWizard`. [How to configure DropWizard](#settings)                                                     |
+| **`.env-blum`**                 | Config file for `Blum`. [How to configure Blum](https://github.com/Freddywhest/BlumBot/blob/main/README.md)                |
+| **`.env-rockyrabbit`**          | Config file for `Rocky Rabbit`. [How to configure Blum](https://github.com/Freddywhest/RockyRabbitBot/blob/main/README.md) |
+| **`.env-tomarket`**             | Config file for `ToMarket`. [How to configure Blum](https://github.com/Freddywhest/ToMarketBot/blob/main/README.md)        |
+| **`queryIds_blum.json`**        | For setting query ids for `Blum`                                                                                           |
+| **`queryIds_rockyrabbit.json`** | For setting query ids for `ROCKY RABBIT`                                                                                   |
+| **`queryIds_tomarket.json`**    | For setting query ids for `ToMarket`                                                                                       |
+
 ## [Settings](https://github.com/FreddyWhest/DropWizard/blob/main/.env-general-example)
 
 | Settings                     | Description                                                                  |
@@ -30,15 +42,6 @@
 | **USE_QUERY_ID_TOMARKET**    | Whether to use query ids instead of sessions `(TOMARKET)` (True / False)     |
 | **USE_QUERY_ID_ROCKYRABBIT** | Whether to use query ids instead of sessions `(ROCKY RABBIT)` (True / False) |
 | **USE_PROXY_FROM_FILE**      | Whether to use proxy from the `bot/config/proxies.js` file (True / False)    |
-
-## Config Files
-
-| File                   | Description                                                                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **`.env-general`**     | Config file for `DropWizard`. [How to configure DropWizard](#settings)                                                     |
-| **`.env-blum`**        | Config file for `Blum`. [How to configure Blum](https://github.com/Freddywhest/BlumBot/blob/main/README.md)                |
-| **`.env-rockyrabbit`** | Config file for `Rocky Rabbit`. [How to configure Blum](https://github.com/Freddywhest/RockyRabbitBot/blob/main/README.md) |
-| **`.env-tomarket`**    | Config file for `ToMarket`. [How to configure Blum](https://github.com/Freddywhest/ToMarketBot/blob/main/README.md)        |
 
 ## Installation
 
