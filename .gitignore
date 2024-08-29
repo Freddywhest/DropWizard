@@ -1,0 +1,18 @@
+# Ignore specific file
+session_user_agents.json
+
+# Ignore the sessions folder
+sessions/
+
+# Ignore any file or folder that ends with .session
+*.session
+*.session/
+
+# Ignore node_modules folder
+node_modules/
+
+# Ignore specific .env files
+.env-general
+.env-blum
+.env-tomarket
+.env-rockyrabbit
