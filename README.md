@@ -4,9 +4,9 @@
 
 # Use Node.Js 18 or greater
 
-## Functionality
+## Available Bots
 
-| Available               | Status |
+| Bots                    | Status |
 | ----------------------- | :----: |
 | Blum                    |   ✅   |
 | Rocky Rabbit            |   ✅   |
@@ -20,7 +20,7 @@
 
 ## Config Files
 
-| File                            | Description                                                                                                                |
+| Files                           | Description                                                                                                                |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | **`.env-general`**              | Config file for `DropWizard`. [How to configure DropWizard](#settings)                                                     |
 | **`.env-blum`**                 | Config file for `Blum`. [How to configure Blum](https://github.com/Freddywhest/BlumBot/blob/main/README.md)                |
