@@ -4,7 +4,13 @@ const _ = require("lodash");
 const filterArray = require("../helpers/filterArray");
 const settings = require("../config/config");
 
-async function upgradeTabCardsBuying(cards_wc, http_client, api, session_name) {
+async function upgradeTabCardsBuying(
+  cards_wc,
+  http_client,
+  api,
+  session_name,
+  bot_name
+) {
   // get user profile
   let profile_data = await api.get_user_data(http_client);
   let mine_sync = await api.mine_sync(http_client);

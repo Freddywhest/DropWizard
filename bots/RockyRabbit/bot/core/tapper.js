@@ -754,6 +754,7 @@ class Tapper {
         }
       } catch (error) {
         //traceback(error);
+        throw error;
         logger.error(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error: ${error}}`
         );
