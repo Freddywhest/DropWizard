@@ -181,9 +181,9 @@ class Tapper {
       }
       throw error;
     } finally {
-      if (this.tg_client.connected) {
+      /* if (this.tg_client.connected) {
         await this.tg_client.destroy();
-      }
+      } */
       await sleep(1);
       if (!this.runOnce) {
         logger.info(

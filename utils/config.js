@@ -45,6 +45,9 @@ const settings = {
   USE_QUERY_ID_MAJOR: process.env.USE_QUERY_ID_MAJOR
     ? process.env.USE_QUERY_ID_MAJOR.toLowerCase() === "true"
     : false,
+  USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
+    ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"
+    : false,
 };
 
 module.exports = settings;

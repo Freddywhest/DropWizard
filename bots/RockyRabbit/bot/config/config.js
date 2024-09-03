@@ -1,4 +1,5 @@
 require("dotenv").config({ path: ".env-rockyrabbit" });
+const generalSetting = require("../../../../utils/config");
 const settings = {
   AUTO_PLAY_ENIGMA: process.env.AUTO_PLAY_ENIGMA
     ? process.env.AUTO_PLAY_ENIGMA.toLowerCase() === "true"
@@ -79,14 +80,7 @@ const settings = {
   MAX_ENERGY_LIMIT_LEVEL: process.env.MAX_ENERGY_LIMIT_LEVEL
     ? parseInt(process.env.MAX_ENERGY_LIMIT_LEVEL)
     : 10,
-
-  USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
-    ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"
-    : false,
-
-  USE_QUERY_ID: process.env.USE_QUERY_ID
-    ? process.env.USE_QUERY_ID.toLowerCase() === "true"
-    : false,
+  USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 };
 
 module.exports = settings;

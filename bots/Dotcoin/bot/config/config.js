@@ -1,4 +1,5 @@
 require("dotenv").config({ path: ".env-dotcoin" });
+const generalSetting = require("../../../../utils/config");
 const settings = {
   AUTO_UPGRADE_MULTITAP: process.env.AUTO_UPGRADE_MULTITAP
     ? process.env.AUTO_UPGRADE_MULTITAP.toLowerCase() === "true"
@@ -29,9 +30,7 @@ const settings = {
       )
     : 70,
 
-  USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
-    ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"
-    : false,
+  USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 
   AUTO_PLAY_SPIN_TO_EARN: process.env.AUTO_PLAY_SPIN_TO_EARN
     ? process.env.AUTO_PLAY_SPIN_TO_EARN.toLowerCase() === "true"

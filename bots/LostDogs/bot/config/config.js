@@ -1,4 +1,6 @@
 require("dotenv").config({ path: ".env-lostdogs" });
+
+const generalSetting = require("../../../../utils/config");
 const settings = {
   API_ID:
     process.env.API_ID && /^\d+$/.test(process.env.API_ID)
@@ -28,13 +30,7 @@ const settings = {
       ? parseInt(process.env.SLEEP_BETWEEN_REQUESTS)
       : 70,
 
-  USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
-    ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"
-    : false,
-
-  USE_QUERY_ID: process.env.USE_QUERY_ID
-    ? process.env.USE_QUERY_ID.toLowerCase() === "true"
-    : false,
+  USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 };
 
 module.exports = settings;

@@ -1,4 +1,5 @@
 require("dotenv").config({ path: ".env-tomarket" });
+const generalSetting = require("../../../../utils/config");
 const settings = {
   AUTO_PLAY_GAME: process.env.AUTO_PLAY_GAME
     ? process.env.AUTO_PLAY_GAME.toLowerCase() === "true"
@@ -26,9 +27,7 @@ const settings = {
       )
     : 70,
 
-  USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
-    ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"
-    : false,
+  USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 };
 
 module.exports = settings;

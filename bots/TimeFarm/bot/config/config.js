@@ -1,4 +1,5 @@
 require("dotenv").config({ path: ".env-timefarm" });
+const generalSetting = require("../../../../utils/config");
 const settings = {
   CLAIM_FRIENDS_REWARD: process.env.CLAIM_FRIENDS_REWARD
     ? process.env.CLAIM_FRIENDS_REWARD.toLowerCase() === "true"
@@ -18,9 +19,7 @@ const settings = {
       )
     : 70,
 
-  USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
-    ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"
-    : false,
+  USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 };
 
 module.exports = settings;

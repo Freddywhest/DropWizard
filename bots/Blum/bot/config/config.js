@@ -1,4 +1,5 @@
 require("dotenv").config({ path: ".env-blum" });
+const generalSetting = require("../../../../utils/config");
 const settings = {
   CLAIM_DAILY_REWARD: process.env.CLAIM_DAILY_REWARD
     ? process.env.CLAIM_DAILY_REWARD.toLowerCase() === "true"
@@ -26,9 +27,7 @@ const settings = {
       )
     : 70,
 
-  USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
-    ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"
-    : false,
+  USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 
   AUTO_JOIN_TRIBE: process.env.AUTO_JOIN_TRIBE
     ? process.env.AUTO_JOIN_TRIBE.toLowerCase() === "true"

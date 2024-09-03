@@ -182,9 +182,9 @@ class Tapper {
       }
       throw error;
     } finally {
-      if (this.tg_client.connected) {
+      /* if (this.tg_client.connected) {
         await this.tg_client.destroy();
-      }
+      } */
       await sleep(1);
       if (!this.runOnce) {
         logger.info(
@@ -430,9 +430,9 @@ class Tapper {
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error: ${error}`
         );
       } finally {
-        if (this.tg_client.connected) {
+        /* if (this.tg_client.connected) {
           await this.tg_client.destroy();
-        }
+        } */
         logger.info(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 😴 sleeping for ${settings.SLEEP_BETWEEN_REQUESTS} seconds...`
         );
