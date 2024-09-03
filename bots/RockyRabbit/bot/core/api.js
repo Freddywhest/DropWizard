@@ -253,6 +253,20 @@ class ApiRequest {
       );
       return response.data;
     } catch (error) {
+      if (
+        error?.response?.data?.message &&
+        error?.response?.data?.message.includes("not available")
+      ) {
+        return "not_available";
+      }
+
+      if (
+        error?.response?.data?.message &&
+        error?.response?.data?.message.includes("exceeded")
+      ) {
+        return "exceeded";
+      }
+
       if (error?.response?.data?.message) {
         logger.warning(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>upgrading boosts</b> ${error?.response?.data?.message}`
