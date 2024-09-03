@@ -13,6 +13,18 @@ cp .env-tomarket-example .env-tomarket
 echo "Copying .env-rockyrabbit-example to .env-rockyrabbit..."
 cp .env-rockyrabbit-example .env-rockyrabbit
 
+echo "Copying .env-timefarm-example to .env-timefarm..."
+cp .env-timefarm-example .env-timefarm
+
+echo "Copying .env-dotcoin-example to .env-dotcoin..."
+cp .env-dotcoin-example .env-dotcoin
+
+echo "Copying .env-lostdogs-example to .env-lostdogs..."
+cp .env-lostdogs-example .env-lostdogs
+
+echo "Copying .env-major-example to .env-major..."
+cp .env-major-example .env-major
+
 echo "Please edit the .env-general file to add your API_ID and API_HASH after Installation."
 
 # Function to check if a command exists

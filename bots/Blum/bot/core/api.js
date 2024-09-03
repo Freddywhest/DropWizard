@@ -38,9 +38,9 @@ class ApiRequest {
   async daily_reward(http_client) {
     try {
       const response = await http_client.post(
-        `${app.gameApiUrl}/api/v1/daily-reward?offset=20`
+        `${app.gameApiUrl}/api/v1/daily-reward?offset=10`
       );
-      return true;
+      return response.data == "OK";
     } catch (error) {
       if (error?.response?.data?.message) {
         logger.warning(
@@ -268,12 +268,18 @@ class ApiRequest {
 
   async check_my_tribe(http_client) {
     try {
-      const response = await http_client.get(
-        `${app.gameApiUrl}/api/v1/tribe/my`
-      );
+      await http_client.get(`${app.gameApiUrl}/api/v1/tribe/my`);
       return true;
     } catch (error) {
-      if (error?.response?.data?.message) {
+      if (
+        error?.response?.data?.message &&
+        error?.response?.data?.message?.includes("not find")
+      ) {
+        return true;
+      } else if (
+        error?.response?.data?.message &&
+        !error?.response?.data?.message?.includes("not find")
+      ) {
         logger.warning(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ⚠️ Error while <b>checking my tribe:</b> ${error?.response?.data?.message}`
         );

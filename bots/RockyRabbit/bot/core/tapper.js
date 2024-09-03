@@ -15,7 +15,6 @@ const moment = require("moment");
 const filterArray = require("../helpers/filterArray");
 const upgradeTabCardsBuying = require("../scripts/upgradeTabCardsBuying");
 const upgradeNoConditionCards = require("../scripts/upgradeNoConditionCards");
-const synchronizingChecker = require("../../../../utils/synchronizingChecker");
 const path = require("path");
 
 class Tapper {
@@ -26,7 +25,9 @@ class Tapper {
     this.API_URL = app.apiUrl;
     this.session_user_agents = this.#load_session_data();
     this.headers = { ...headers, "user-agent": this.#get_user_agent() };
-    this.api = new ApiRequest(this.session_name, bot_name);
+    this.api = new ApiRequest(this.session_name, this.bot_name);
+    this.sleep_floodwait = 0;
+    this.runOnce = false;
   }
 
   #load_session_data() {
@@ -120,28 +121,27 @@ class Tapper {
   async #get_tg_web_data() {
     try {
       await this.tg_client.start();
-      logger.info(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
-      );
       const platform = this.#get_platform(this.#get_user_agent());
-      const get_bot_chat_history = await this.tg_client.invoke(
-        new Api.messages.GetHistory({
-          peer: await this.tg_client.getInputEntity(app.peer),
-          limit: 1,
-        })
-      );
-
-      //
-      await synchronizingChecker(this.#channel_checker, this.tg_client);
-
-      if (get_bot_chat_history.messages.length < 1) {
-        await this.tg_client.invoke(
-          new Api.messages.SendMessage({
-            message: "/start",
-            silent: true,
-            peer: await this.tg_client.getInputEntity(app.peer),
+      if (!this.runOnce) {
+        logger.info(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
+        );
+        const botHistory = await this.tg_client.invoke(
+          new Api.messages.GetHistory({
+            peer: await this.tg_client.getInputEntity(app.bot),
+            limit: 10,
           })
         );
+        if (botHistory.messages.length < 1) {
+          await this.tg_client.invoke(
+            new Api.messages.SendMessage({
+              message: "/start",
+              silent: true,
+              noWebpage: true,
+              peer: await this.tg_client.getInputEntity(app.peer),
+            })
+          );
+        }
       }
 
       const result = await this.tg_client.invoke(
@@ -161,16 +161,44 @@ class Tapper {
       );
       return parser.toQueryString(data);
     } catch (error) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
-      );
+      const regex = /A wait of (\d+) seconds/;
+      if (
+        error.message.includes("FloodWaitError") ||
+        error.message.match(regex)
+      ) {
+        const match = error.message.match(regex);
+
+        if (match) {
+          this.sleep_floodwait =
+            new Date().getTime() / 1000 + parseInt(match[1], 10) + 10;
+        } else {
+          this.sleep_floodwait = new Date().getTime() / 1000 + 50;
+        }
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${
+            this.session_name
+          } | Some flood error, waiting ${
+            this.sleep_floodwait - new Date().getTime() / 1000
+          } seconds to try again...`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
+        );
+      }
       throw error;
     } finally {
-      /* await this.tg_client.disconnect(); */
+      if (this.tg_client.connected) {
+        await this.tg_client.destroy();
+      }
       await sleep(1);
-      logger.info(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
-      );
+      if (!this.runOnce) {
+        logger.info(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
+        );
+      }
+
+      this.runOnce = true;
     }
   }
 
@@ -190,7 +218,6 @@ class Tapper {
 
   async #check_proxy(http_client, proxy) {
     try {
-      http_client.defaults.headers["host"] = "httpbin.org";
       const response = await http_client.get("https://httpbin.org/ip");
       const ip = response.data.origin;
       logger.info(
@@ -228,6 +255,8 @@ class Tapper {
     let config = {};
     let get_daily_sync_info = {};
     let mine_sync = [];
+    let exceeded_energy = 0;
+    let exceeded_turbo = 0;
     let sleep_empty_energy = 0;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
@@ -365,6 +394,30 @@ class Tapper {
               settings.RANDOM_TAPS_COUNT[0],
               settings.RANDOM_TAPS_COUNT[1]
             );
+            boosts_list = await this.api.get_boosts(http_client);
+            if (
+              !moment(exceeded_turbo * 1000).isSame(new Date().getTime(), "day")
+            ) {
+              const turbo_data = this.#get_boost_by_id(boosts_list, "turbo");
+
+              const turbo_boost = await this.api.upgrade_boost(http_client, {
+                boostId: turbo_data?.boostId,
+                timezone: app.timezone,
+              });
+
+              if (turbo_boost?.status?.toLowerCase() === "ok") {
+                logger.info(
+                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ⏩ Turbo boost activated.`
+                );
+                await sleep(5);
+              } else if (
+                typeof turbo_boost == "string" &&
+                turbo_boost.includes("exceeded")
+              ) {
+                exceeded_turbo = currentTime;
+              }
+            }
+
             const taps_can_send =
               profile_data?.clicker?.availableTaps /
               profile_data?.clicker?.earnPerTap;
@@ -376,7 +429,6 @@ class Tapper {
               const balanceChange =
                 taps_result?.clicker?.balance - profile_data?.clicker?.balance;
               profile_data = await this.api.get_user_data(http_client);
-              boosts_list = await this.api.get_boosts(http_client);
               logger.info(
                 `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ Taps sent successfully | Balance: <la>${profile_data?.clicker?.balance}</la> (<gr>+${balanceChange}</gr>) | Total: <lb>${profile_data?.clicker?.totalBalance}</lb> | Available energy: <ye>${profile_data?.clicker?.availableTaps}</ye>`
               );
@@ -401,9 +453,12 @@ class Tapper {
               }
 
               if (
-                full_taps_data?.level < 6 &&
                 full_taps_data?.lastUpgradeAt + 3605 <= currentTime &&
-                settings.APPLY_DAILY_FULL_ENERGY
+                settings.APPLY_DAILY_FULL_ENERGY &&
+                !moment(exceeded_energy * 1000).isSame(
+                  new Date().getTime(),
+                  "day"
+                )
               ) {
                 const full_energy_boost = await this.api.upgrade_boost(
                   http_client,
@@ -412,10 +467,19 @@ class Tapper {
                     timezone: app.timezone,
                   }
                 );
+
+                if (
+                  typeof full_energy_boost == "string" &&
+                  full_energy_boost.includes("exceeded")
+                ) {
+                  exceeded_energy = currentTime;
+                  break;
+                }
+
                 if (full_energy_boost?.status?.toLowerCase() === "ok") {
                   profile_data = await this.api.get_user_data(http_client);
                   logger.info(
-                    `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🔋Full energy boost applied successfully | Available energy: <ye>${profile_data?.clicker?.availableTaps}</ye>`
+                    `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🔋Full energy boost applied successfully`
                   );
                 }
               } else {
@@ -652,14 +716,12 @@ class Tapper {
           const cards_fighter = filterArray.getCardsOnUpgradeTab(
             config?.config?.upgrade,
             "fighter",
-            "upgrade",
-            this.bot_name
+            "upgrade"
           );
           const cards_coach = filterArray.getCardsOnUpgradeTab(
             config?.config?.upgrade,
             "coach",
-            "upgrade",
-            this.bot_name
+            "upgrade"
           );
 
           if (_.isEmpty(cards_fighter) || _.isEmpty(cards_coach)) {
@@ -681,14 +743,12 @@ class Tapper {
               const cards_fighter_level = filterArray.getCardsWithLevel(
                 mine_sync,
                 cards_fighter,
-                level,
-                this.bot_name
+                level
               );
               const cards_coach_level = filterArray.getCardsWithLevel(
                 mine_sync,
                 cards_coach,
-                level,
-                this.bot_name
+                level
               );
 
               if (!_.isEmpty(cards_fighter_level)) {
@@ -754,7 +814,6 @@ class Tapper {
         }
       } catch (error) {
         //traceback(error);
-        throw error;
         logger.error(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error: ${error}}`
         );

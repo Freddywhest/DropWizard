@@ -12,6 +12,7 @@ const ApiRequest = require("./api");
 var _ = require("lodash");
 const parser = require("../../../../utils/parser");
 const path = require("path");
+const taskFilter = require("../utils/taskFilter");
 
 class Tapper {
   constructor(tg_client, bot_name) {
@@ -140,6 +141,7 @@ class Tapper {
           platform,
           from_bot_menu: false,
           url: app.webviewUrl,
+          startParam: "VSLNu6frT0NF3Vw1",
         })
       );
       const authUrl = result.url;
@@ -149,9 +151,8 @@ class Tapper {
       );
 
       const json = {
-        query: parser.toQueryString(data),
+        init_data: parser.toQueryString(data),
       };
-
       return json;
     } catch (error) {
       const regex = /A wait of (\d+) seconds/;
@@ -198,24 +199,16 @@ class Tapper {
   async #get_access_token(tgWebData, http_client) {
     try {
       const response = await http_client.post(
-        `${app.gatewayApiUrl}/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP`,
+        `${app.apiUrl}/api/auth/tg/`,
         JSON.stringify(tgWebData)
       );
 
-      return response.data?.token;
+      return response.data;
     } catch (error) {
-      if (error?.response?.status > 499) {
-        logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Server Error, retrying again after sleep...`
-        );
-        await sleep(1);
-        return null;
-      } else {
-        logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
-        );
-        await sleep(3); // 3 seconds delay
-      }
+      logger.error(
+        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
+      );
+      await sleep(3); // 3 seconds delay
     }
   }
 
@@ -253,6 +246,11 @@ class Tapper {
     let access_token_created_time = 0;
 
     let profile_data;
+    let parsed_tg_web_data;
+    let tasks;
+    let tasks_daily;
+    let sleep_hold_to_earn = 0;
+    let sleep_roulette = 0;
     let sleep_reward = 0;
     let access_token;
 
@@ -277,177 +275,168 @@ class Tapper {
     }
     while (true) {
       try {
-        const currentTime = Date.now() / 1000;
+        const currentTime = _.floor(Date.now() / 1000);
         if (currentTime - access_token_created_time >= 1800) {
           const tg_web_data = await this.#get_tg_web_data();
-
           access_token = await this.#get_access_token(tg_web_data, http_client);
-          if (!access_token) {
-            continue;
-          }
-          http_client.defaults.headers[
-            "authorization"
-          ] = `Bearer ${access_token?.access}`;
+          http_client.defaults.headers["authorization"] = `${
+            access_token?.token_type ? access_token?.token_type : "Bearer"
+          } ${access_token?.access_token}`;
+
+          parsed_tg_web_data = parser.toJson(tg_web_data.init_data);
           access_token_created_time = currentTime;
           await sleep(2);
         }
-
-        profile_data = await this.api.get_user_data(http_client);
-        const time = await this.api.get_time(http_client);
-        const checkJWT = await this.api.check_jwt(http_client);
-
-        if (!checkJWT || !profile_data) {
-          profile_data = null;
-          access_token = null;
+        if (_.isEmpty(parsed_tg_web_data) || !parsed_tg_web_data?.user?.id) {
           access_token_created_time = 0;
           continue;
         }
 
-        // Tribe
-        if (settings.AUTO_JOIN_TRIBE) {
-          const check_my_tribe = await this.api.check_my_tribe(http_client);
-          if (check_my_tribe === false) {
-            const get_tribes = await this.api.get_tribes(http_client);
-            if (
-              Array.isArray(get_tribes?.items) &&
-              get_tribes?.items?.length > 0
-            ) {
-              await this.api.join_tribe(http_client, get_tribes?.items[0].id);
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Joined tribe: <lb>${get_tribes?.items[0].chatname}</lb>`
-              );
-            }
-          }
+        profile_data = await this.api.get_user_info(
+          http_client,
+          parsed_tg_web_data?.user?.id
+        );
+
+        tasks = await this.api.get_tasks(http_client, false);
+        tasks_daily = await this.api.get_tasks(http_client, true);
+        /* referrals = await this.api.get_referrals(http_client);
+        position = await this.api.get_position(
+          http_client,
+          parsed_tg_web_data?.user?.id
+        ); */
+
+        if (_.isEmpty(profile_data)) {
+          access_token_created_time = 0;
+          continue;
         }
+        await sleep(2);
 
-        // Farming
-        if (!profile_data?.farming) {
-          if (settings.AUTO_START_FARMING) {
-            const farm_response = await this.api.start_farming(http_client);
-            logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${
-                this.session_name
-              } | Farming started  | End Time: <la>${new Date(
-                farm_response?.endTime
-              )}</la> | Earnings Rate: <pi>${farm_response?.earningsRate}</pi>`
-            );
-          }
-        } else if (time?.now >= profile_data?.farming?.endTime) {
-          if (settings.AUTO_CLAIM_FARMING_REWARD) {
-            logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Claiming farming reward...`
-            );
-            const farm_reward = await this.api.claim_farming(http_client);
-            logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed farming reward | Balance <lb>${farm_reward?.availableBalance}</lb> | Available Play Pass <ye>${farm_reward?.playPasses}</ye>`
-            );
-          }
-        } else if (time?.now >= profile_data?.farming?.startTime) {
-          // in hours
-          logger.info(
-            `<ye>[${this.bot_name}]</ye> | ${
-              this.session_name
-            } | Farming ends in ${Math.floor(
-              (profile_data?.farming?.endTime - time?.now) / 1000 / 60 / 60
-            )} hour(s)`
-          );
-        }
+        if (settings.CLAIM_DAILY_REWARDS && sleep_reward < currentTime) {
+          const check_joined_major_channel =
+            await this.api.check_joined_major_channel(http_client);
 
-        // Sleep
-        await sleep(3);
-
-        // Re-assign profile data
-        profile_data = await this.api.get_user_data(http_client);
-        if (settings.AUTO_PLAY_GAMES) {
-          // Game
-          while (profile_data?.playPasses > 0) {
-            profile_data = await this.api.get_user_data(http_client);
-            logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | sleeping for 20 seconds before starting game...`
-            );
-            await sleep(20);
-            const game_response = await this.api.start_game(http_client);
-            if (game_response?.gameId) {
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎲  Game started | Duration: <la> 35 seconds</la>`
-              );
-              await sleep(35);
-              const points = _.random(100, 200);
-              const data = {
-                gameId: game_response?.gameId,
-                points: points,
-              };
-              const game_reward = await this.api.claim_game_reward(
-                http_client,
-                data
-              );
-
-              // Re-assign profile data
-              profile_data = await this.api.get_user_data(http_client);
-              if (game_reward.toLowerCase() == "ok") {
-                logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎲  Game ended  | Earnings: <gr>+${points}</gr> Blum points | Available Play Passes: <ye>${profile_data?.playPasses}</ye> | Balance: <lb>${profile_data?.availableBalance}</lb>`
-                );
-              }
-            }
-          }
-        }
-
-        // Sleep
-        await sleep(3);
-
-        if (settings.CLAIM_FRIENDS_REWARD) {
-          // Friend reward
-          const friend_reward = await this.api.get_friend_balance(http_client);
           if (
-            friend_reward?.canClaim &&
-            !isNaN(parseInt(friend_reward?.amountForClaim))
+            !_.isEmpty(check_joined_major_channel) &&
+            check_joined_major_channel?.is_completed == false &&
+            check_joined_major_channel?.task_id == 27
           ) {
-            if (parseInt(friend_reward?.amountForClaim) > 0) {
-              const friend_reward_response =
-                await this.api.claim_friends_balance(http_client);
-              if (friend_reward_response?.claimBalance) {
-                // Re-assign profile data
-                profile_data = await this.api.get_user_data(http_client);
+            if (!this.tg_client.connected) {
+              await this.tg_client.start();
+            }
+            await this.tg_client.invoke(
+              new Api.channels.JoinChannel({
+                channel: await this.tg_client.getInputEntity(app.majorChannel),
+              })
+            );
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ Joined Major Channel. Retrying to claim daily reward...`
+            );
+            continue;
+          }
+          const daily_reward = await this.api.claim_visit(http_client);
+          if (daily_reward?.is_increased == true) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Daily Reward claimed successfully | Streak: <pi>${daily_reward?.streak}</pi>`
+            );
+          }
+
+          sleep_reward = _.floor(Date.now() / 1000) + 43200;
+          await sleep(2);
+        }
+
+        if (settings.AUTO_CLAIM_TASKS) {
+          const daily = taskFilter(tasks_daily, ["stories", "without_check"]);
+          if (daily.length > 0) {
+            for (let i = 0; i < daily.length; i++) {
+              logger.info(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Sleep 10 seconds before claiming task <la>${daily[i].title}</la>`
+              );
+              await sleep(10);
+              const data = {
+                task_id: daily[i].id,
+              };
+              const result = await this.api.claim_task(http_client, data);
+              if (result?.is_completed) {
                 logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed friends reward <gr>+${friend_reward_response?.claimBalance}</gr> | Balance: <lb>${profile_data?.availableBalance}</lb>`
+                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ Claimed task <la>${daily[i].title}</la>`
                 );
               }
             }
           }
-        }
-        // Sleep
-        await sleep(3);
 
-        // Daily reward
-        if (currentTime >= sleep_reward) {
-          if (settings.CLAIM_DAILY_REWARD) {
-            const daily_reward = await this.api.daily_reward(http_client);
-            if (daily_reward) {
+          const nonDaily = taskFilter(tasks, "without_check");
+          if (nonDaily.length > 0) {
+            for (let i = 0; i < nonDaily.length; i++) {
               logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed daily reward`
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Sleep 10 seconds before claiming task <la>${nonDaily[i].title}</la>`
               );
-            } else {
-              sleep_reward = currentTime + 18000;
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${
-                  this.session_name
-                } | ⏰ Daily reward not available. Next check: <b><lb>${new Date(
-                  sleep_reward * 1000
-                )}</lb></b>`
-              );
+              await sleep(10);
+              const data = {
+                task_id: nonDaily[i].id,
+              };
+              const result = await this.api.claim_task(http_client, data);
+              if (
+                typeof result === "string" &&
+                result?.toLowerCase()?.includes("retry")
+              ) {
+                i--;
+                continue;
+              }
+              if (result?.is_completed) {
+                logger.info(
+                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ Claimed task <la>${nonDaily[i].title}</la>`
+                );
+              }
             }
           }
+          await sleep(2);
+        }
+
+        if (settings.AUTO_PLAY_ROULETTE && sleep_roulette < currentTime) {
+          const result = await this.api.claim_roulette(http_client);
+          if (result?.rating_award) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎰 Roulette claimed successfully | Reward: <la>${result?.rating_award}</la>`
+            );
+            sleep_roulette = _.floor(Date.now() / 1000) + 28820;
+          } else if (!_.isEmpty(result?.detail)) {
+            sleep_roulette = result?.detail?.blocked_until + 10;
+          }
+
+          await sleep(2);
+        }
+
+        if (
+          settings.AUTO_PLAY_HOLD_TO_EARN &&
+          sleep_hold_to_earn < currentTime
+        ) {
+          const data = {
+            coins: _.random(700, 820),
+          };
+          const result = await this.api.claim_bonus(http_client, data);
+          if (result?.success == true) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💰 Hold to earn claimed successfully | Reward: <la>${data?.coins}</la>`
+            );
+            sleep_hold_to_earn = _.floor(Date.now() / 1000) + 28820;
+          } else if (!_.isEmpty(result?.detail)) {
+            sleep_hold_to_earn = result?.detail?.blocked_until + 10;
+          }
+
+          await sleep(2);
         }
       } catch (error) {
         logger.error(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error: ${error}`
         );
       } finally {
+        if (this.tg_client.connected) {
+          await this.tg_client.destroy();
+        }
         logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 😴 sleeping for ${settings.SLEEP_BETWEEN_TAP} seconds...`
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 😴 sleeping for ${settings.SLEEP_BETWEEN_REQUESTS} seconds...`
         );
-        await sleep(settings.SLEEP_BETWEEN_TAP);
+        await sleep(settings.SLEEP_BETWEEN_REQUESTS);
       }
     }
   }

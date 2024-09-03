@@ -22,7 +22,7 @@ class Tapper {
     this.API_URL = app.apiUrl;
     this.session_user_agents = this.#load_session_data();
     this.headers = { ...headers, "user-agent": this.#get_user_agent() };
-    this.api = new ApiRequest(this.session_name, bot_name);
+    this.api = new ApiRequest(this.session_name, this.bot_name);
     this.MVOH_dly = "fa873d13-d831-4d6f-8aee-9cff7a1d0db1";
     this.JUOY_f = "53b22103-c7ff-413d-bc63-20f6fb806a07";
     this.TOIY_g = "59bcd12e-04e2-404c-a172-311a0084587d";
@@ -115,20 +115,36 @@ class Tapper {
     try {
       await this.tg_client.start();
       const platform = this.#get_platform(this.#get_user_agent());
-
-      logger.info(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
-      );
+      if (!this.runOnce) {
+        logger.info(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
+        );
+        const botHistory = await this.tg_client.invoke(
+          new Api.messages.GetHistory({
+            peer: await this.tg_client.getInputEntity(app.bot),
+            limit: 10,
+          })
+        );
+        if (botHistory.messages.length < 1) {
+          await this.tg_client.invoke(
+            new Api.messages.SendMessage({
+              message: "/start",
+              silent: true,
+              noWebpage: true,
+              peer: await this.tg_client.getInputEntity(app.peer),
+            })
+          );
+        }
+      }
       const result = await this.tg_client.invoke(
         new Api.messages.RequestWebView({
           peer: await this.tg_client.getInputEntity(app.peer),
           bot: await this.tg_client.getInputEntity(app.bot),
           platform,
-          from_bot_menu: true,
+          from_bot_menu: false,
           url: app.webviewUrl,
         })
       );
-
       const authUrl = result.url;
       const tgWebData = authUrl.split("#", 2)[1];
       const data = parser.toJson(
@@ -142,16 +158,44 @@ class Tapper {
 
       return jsonData;
     } catch (error) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
-      );
+      const regex = /A wait of (\d+) seconds/;
+      if (
+        error.message.includes("FloodWaitError") ||
+        error.message.match(regex)
+      ) {
+        const match = error.message.match(regex);
+
+        if (match) {
+          this.sleep_floodwait =
+            new Date().getTime() / 1000 + parseInt(match[1], 10) + 10;
+        } else {
+          this.sleep_floodwait = new Date().getTime() / 1000 + 50;
+        }
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${
+            this.session_name
+          } | Some flood error, waiting ${
+            this.sleep_floodwait - new Date().getTime() / 1000
+          } seconds to try again...`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
+        );
+      }
       throw error;
     } finally {
-      /* await this.tg_client.disconnect(); */
+      if (this.tg_client.connected) {
+        await this.tg_client.destroy();
+      }
       await sleep(1);
-      logger.info(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
-      );
+      if (!this.runOnce) {
+        logger.info(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
+        );
+      }
+
+      this.runOnce = true;
     }
   }
 
@@ -164,10 +208,18 @@ class Tapper {
 
       return response.data;
     } catch (error) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
-      );
-      await sleep(3); // 3 seconds delay
+      if (error?.response?.status > 499) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Server Error, retrying again after sleep...`
+        );
+        await sleep(1);
+        return null;
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
+        );
+        await sleep(3); // 3 seconds delay
+      }
     }
   }
 
@@ -398,6 +450,7 @@ class Tapper {
                 farm_info_data
               );
               if (claim_farm?.status == 0) {
+                await sleep(5);
                 profile_data = await this.api.get_user_data(http_client);
                 await this.api.start_farming(http_client, farm_info_data);
                 logger.info(
@@ -429,9 +482,9 @@ class Tapper {
         // Play game
         while (profile_data?.data?.play_passes > 0 && settings.AUTO_PLAY_GAME) {
           logger.info(
-            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | sleeping for 5 seconds before starting game...`
+            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | sleeping for 20 seconds before starting game...`
           );
-          await sleep(5);
+          await sleep(20);
           const data = { game_id: this.TOIY_g };
           const start_game_response = await this.api.start_game(
             http_client,
@@ -482,8 +535,7 @@ class Tapper {
             }
           } else {
             logger.error(
-              `<ye>[${this.bot_name}]</ye> |
-               ${this.session_name} | Error while <b>playing game:</b>: ${start_game_response?.message}`
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>playing game:</b>: ${start_game_response?.message}`
             );
           }
 

@@ -16,3 +16,7 @@ node_modules/
 .env-blum
 .env-tomarket
 .env-rockyrabbit
+.env-major
+.env-lostdogs
+.env-dotcoin
+.env-timefarm

@@ -18,7 +18,7 @@ class NonSessionTapper {
     this.query_id = query_id;
     this.session_user_agents = this.#load_session_data();
     this.headers = { ...headers, "user-agent": this.#get_user_agent() };
-    this.api = new ApiRequest(this.session_name, bot_name);
+    this.api = new ApiRequest(this.session_name);
   }
 
   #load_session_data() {
@@ -294,9 +294,9 @@ class NonSessionTapper {
           // Game
           while (profile_data?.playPasses > 0) {
             logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | sleeping for 5 seconds before starting game...`
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | sleeping for 20 seconds before starting game...`
             );
-            await sleep(5);
+            await sleep(20);
             const game_response = await this.api.start_game(http_client);
             if (game_response?.gameId) {
               logger.info(

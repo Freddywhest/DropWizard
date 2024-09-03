@@ -14,6 +14,16 @@ const settings = {
   TOMARKET: process.env.TOMARKET
     ? process.env.TOMARKET.toLowerCase() === "true"
     : true,
+  DOTCOIN: process.env.DOTCOIN
+    ? process.env.DOTCOIN.toLowerCase() === "true"
+    : true,
+  TIMEFARM: process.env.TIMEFARM
+    ? process.env.TIMEFARM.toLowerCase() === "true"
+    : true,
+  LOSTDOGS: process.env.LOSTDOGS
+    ? process.env.LOSTDOGS.toLowerCase() === "true"
+    : true,
+  MAJOR: process.env.MAJOR ? process.env.MAJOR.toLowerCase() === "true" : true,
   USE_QUERY_ID_TOMARKET: process.env.USE_QUERY_ID_TOMARKET
     ? process.env.USE_QUERY_ID_TOMARKET.toLowerCase() === "true"
     : false,
@@ -22,6 +32,18 @@ const settings = {
     : false,
   USE_QUERY_ID_ROCKYRABBIT: process.env.USE_QUERY_ID_ROCKYRABBIT
     ? process.env.USE_QUERY_ID_ROCKYRABBIT.toLowerCase() === "true"
+    : false,
+  USE_QUERY_ID_DOTCOIN: process.env.USE_QUERY_ID_DOTCOIN
+    ? process.env.USE_QUERY_ID_DOTCOIN.toLowerCase() === "true"
+    : false,
+  USE_QUERY_ID_LOSTDOGS: process.env.USE_QUERY_ID_LOSTDOGS
+    ? process.env.USE_QUERY_ID_LOSTDOGS.toLowerCase() === "true"
+    : false,
+  USE_QUERY_ID_TIMEFARM: process.env.USE_QUERY_ID_TIMEFARM
+    ? process.env.USE_QUERY_ID_TIMEFARM.toLowerCase() === "true"
+    : false,
+  USE_QUERY_ID_MAJOR: process.env.USE_QUERY_ID_MAJOR
+    ? process.env.USE_QUERY_ID_MAJOR.toLowerCase() === "true"
     : false,
 };
 

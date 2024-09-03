@@ -19,7 +19,7 @@ class NonSessionTapper {
     this.API_URL = app.apiUrl;
     this.session_user_agents = this.#load_session_data();
     this.headers = { ...headers, "user-agent": this.#get_user_agent() };
-    this.api = new ApiRequest(this.session_name, bot_name);
+    this.api = new ApiRequest(this.session_name, this.bot_name);
     this.MVOH_dly = "fa873d13-d831-4d6f-8aee-9cff7a1d0db1";
     this.JUOY_f = "53b22103-c7ff-413d-bc63-20f6fb806a07";
     this.TOIY_g = "59bcd12e-04e2-404c-a172-311a0084587d";
@@ -349,6 +349,7 @@ class NonSessionTapper {
                 farm_info_data
               );
               if (claim_farm?.status == 0) {
+                await sleep(5);
                 profile_data = await this.api.get_user_data(http_client);
                 await this.api.start_farming(http_client, farm_info_data);
                 logger.info(
@@ -380,9 +381,9 @@ class NonSessionTapper {
         // Play game
         while (profile_data?.data?.play_passes > 0 && settings.AUTO_PLAY_GAME) {
           logger.info(
-            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | sleeping for 5 seconds before starting game...`
+            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | sleeping for 20 seconds before starting game...`
           );
-          await sleep(5);
+          await sleep(20);
           const data = { game_id: this.TOIY_g };
           const start_game_response = await this.api.start_game(
             http_client,
