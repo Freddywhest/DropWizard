@@ -1,6 +1,8 @@
 # Ignore specific file
 session_user_agents.json
 
+simulate_device.json
+
 # Ignore the sessions folder
 sessions/
 

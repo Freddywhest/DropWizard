@@ -161,6 +161,12 @@ class Tapper {
       );
       return parser.toQueryString(data);
     } catch (error) {
+      if (error.message.includes("AUTH_KEY_DUPLICATED")) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | The same authorization key (session file) was used in more than one place simultaneously. You must delete your session file and create a new session`
+        );
+        return null;
+      }
       const regex = /A wait of (\d+) seconds/;
       if (
         error.message.includes("FloodWaitError") ||
@@ -186,7 +192,7 @@ class Tapper {
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
         );
       }
-      throw error;
+      return null;
     } finally {
       /* if (this.tg_client.connected) {
         await this.tg_client.destroy();
@@ -199,20 +205,6 @@ class Tapper {
       }
 
       this.runOnce = true;
-    }
-  }
-
-  async #channel_checker(tg, channelName) {
-    try {
-      await tg.invoke(
-        new Api.channels.GetParticipant({
-          channel: await tg.getInputEntity(channelName),
-          participant: await tg.getInputEntity("me"),
-        })
-      );
-      return true;
-    } catch (error) {
-      return false;
     }
   }
 
@@ -287,6 +279,14 @@ class Tapper {
             this.#get_platform(this.#get_user_agent());
 
           const tg_web_data = await this.#get_tg_web_data();
+          if (
+            _.isNull(tg_web_data) ||
+            _.isUndefined(tg_web_data) ||
+            !tg_web_data ||
+            _.isEmpty(tg_web_data)
+          ) {
+            continue;
+          }
 
           http_client.defaults.headers["authorization"] = `tma ${tg_web_data}`;
 

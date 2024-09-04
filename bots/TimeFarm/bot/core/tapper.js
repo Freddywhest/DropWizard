@@ -156,6 +156,12 @@ class Tapper {
       };
       return json;
     } catch (error) {
+      if (error.message.includes("AUTH_KEY_DUPLICATED")) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | The same authorization key (session file) was used in more than one place simultaneously. You must delete your session file and create a new session`
+        );
+        return null;
+      }
       const regex = /A wait of (\d+) seconds/;
       if (
         error.message.includes("FloodWaitError") ||
@@ -181,7 +187,7 @@ class Tapper {
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
         );
       }
-      throw error;
+      return null;
     } finally {
       /* if (this.tg_client.connected) {
         await this.tg_client.destroy();
@@ -276,6 +282,15 @@ class Tapper {
         const currentTime = _.floor(Date.now() / 1000);
         if (currentTime - access_token_created_time >= 1800) {
           const tg_web_data = await this.#get_tg_web_data();
+          if (
+            _.isNull(tg_web_data) ||
+            _.isUndefined(tg_web_data) ||
+            !tg_web_data ||
+            _.isEmpty(tg_web_data)
+          ) {
+            continue;
+          }
+
           access_token = await this.#get_access_token(tg_web_data, http_client);
           http_client.defaults.headers[
             "authorization"
@@ -346,10 +361,14 @@ class Tapper {
 
         // Farming
         if (settings.AUTO_FARMING) {
-          if (farm_info?.activeFarmingStartedAt && farm_info?.farmingReward) {
+          farm_info = await this.api.get_farm_info(http_client);
+          if (
+            farm_info?.activeFarmingStartedAt &&
+            farm_info?.farmingDurationInSec
+          ) {
             farmingTime = _.floor(
               new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                farm_info?.farmingReward
+                farm_info?.farmingDurationInSec
             );
 
             if (farmingTime < currentTime) {
@@ -360,11 +379,12 @@ class Tapper {
                 );
               }
               const result_start = await this.api.start_farming(http_client);
+
               if (result_start) {
                 farm_info = await this.api.get_farm_info(http_client);
-                farmingTime = new _.floor(
+                farmingTime = _.floor(
                   new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                    farm_info?.farmingReward
+                    farm_info?.farmingDurationInSec
                 );
                 logger.info(
                   `<ye>[${this.bot_name}]</ye> | ${
@@ -377,6 +397,7 @@ class Tapper {
                 );
               }
             } else {
+              farm_info = await this.api.get_farm_info(http_client);
               logger.info(
                 `<ye>[${this.bot_name}]</ye> | ${
                   this.session_name
@@ -393,7 +414,7 @@ class Tapper {
               farm_info = await this.api.get_farm_info(http_client);
               farmingTime = _.floor(
                 new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                  farm_info?.farmingReward
+                  farm_info?.farmingDurationInSec
               );
               logger.info(
                 `<ye>[${this.bot_name}]</ye> | ${

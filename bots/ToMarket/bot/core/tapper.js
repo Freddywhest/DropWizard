@@ -158,6 +158,12 @@ class Tapper {
 
       return jsonData;
     } catch (error) {
+      if (error.message.includes("AUTH_KEY_DUPLICATED")) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | The same authorization key (session file) was used in more than one place simultaneously. You must delete your session file and create a new session`
+        );
+        return null;
+      }
       const regex = /A wait of (\d+) seconds/;
       if (
         error.message.includes("FloodWaitError") ||
@@ -183,7 +189,7 @@ class Tapper {
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
         );
       }
-      throw error;
+      return null;
     } finally {
       /* if (this.tg_client.connected) {
         await this.tg_client.destroy();
@@ -287,6 +293,15 @@ class Tapper {
         if (currentTime - access_token_created_time >= 3600) {
           http_client.defaults.headers["host"] = app.host;
           const tg_web_data = await this.#get_tg_web_data();
+          if (
+            _.isNull(tg_web_data) ||
+            _.isUndefined(tg_web_data) ||
+            !tg_web_data ||
+            _.isEmpty(tg_web_data)
+          ) {
+            continue;
+          }
+
           const get_token = await this.#get_access_token(
             tg_web_data,
             http_client
@@ -454,7 +469,7 @@ class Tapper {
                 profile_data = await this.api.get_user_data(http_client);
                 await this.api.start_farming(http_client, farm_info_data);
                 logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🌱 Claimed farm reward | Balance: <la>${profile_data?.data?.available_balance}</la> <gr>(+${claim_farm?.data?.points})</gr> | Play Passes: ${claim_farm?.data?.today_game}`
+                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🌱 Claimed farm reward | Balance: <la>${profile_data?.data?.available_balance}</la> <gr>(+${claim_farm?.data?.points})</gr>`
                 );
               } else {
                 logger.warning(
