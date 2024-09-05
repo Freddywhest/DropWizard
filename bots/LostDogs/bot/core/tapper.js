@@ -262,7 +262,6 @@ class Tapper {
       try {
         const currentTime = Date.now() / 1000;
         if (currentTime - access_token_created_time >= 3600) {
-          http_client.defaults.headers["host"] = app.host;
           const tg_web_data = await this.#get_tg_web_data();
           if (
             _.isNull(tg_web_data) ||

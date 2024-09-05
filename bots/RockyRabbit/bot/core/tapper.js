@@ -274,7 +274,6 @@ class Tapper {
       try {
         const currentTime = _.floor(Date.now() / 1000);
         if (currentTime - access_token_created_time >= 3600) {
-          http_client.defaults.headers["host"] = app.host;
           http_client.defaults.headers["sec-ch-ua-platform"] =
             this.#get_platform(this.#get_user_agent());
 

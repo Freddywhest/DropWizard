@@ -1,7 +1,6 @@
 const app = require("../config/app");
 
 const headers = {
-  host: app.host,
   "content-type": "application/json",
   accept: "*/*",
   "sec-fetch-site": "cross-site",
