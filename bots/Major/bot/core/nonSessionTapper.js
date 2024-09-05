@@ -150,9 +150,11 @@ class NonSessionTapper {
     let access_token_created_time = 0;
 
     let profile_data;
+    let position;
     let parsed_tg_web_data;
     let tasks;
     let tasks_daily;
+    let sleep_swipe = 0;
     let sleep_hold_to_earn = 0;
     let sleep_roulette = 0;
     let sleep_reward = 0;
@@ -203,15 +205,21 @@ class NonSessionTapper {
 
         tasks = await this.api.get_tasks(http_client, false);
         tasks_daily = await this.api.get_tasks(http_client, true);
-        /* referrals = await this.api.get_referrals(http_client);
+        /*referrals = await this.api.get_referrals(http_client);
+         */
         position = await this.api.get_position(
           http_client,
           parsed_tg_web_data?.user?.id
-        ); */
-
+        );
         if (_.isEmpty(profile_data)) {
           access_token_created_time = 0;
           continue;
+        }
+
+        if (!_.isEmpty(position)) {
+          logger.info(
+            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 👷 You current position: <pi>${position?.position}</pi> | 💲 Balance: <la>${profile_data?.rating}</la>`
+          );
         }
         await sleep(2);
 
@@ -289,14 +297,15 @@ class NonSessionTapper {
         }
 
         if (settings.AUTO_PLAY_ROULETTE && sleep_roulette < currentTime) {
-          const result = await this.api.claim_roulette(http_client);
-          if (result?.rating_award) {
+          const get_roulette = await this.api.get_roulette(http_client);
+          if (!_.isEmpty(get_roulette) && get_roulette?.success == true) {
+            const result = await this.api.claim_roulette(http_client);
             logger.info(
               `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎰 Roulette claimed successfully | Reward: <la>${result?.rating_award}</la>`
             );
             sleep_roulette = _.floor(Date.now() / 1000) + 28820;
-          } else if (!_.isEmpty(result?.detail)) {
-            sleep_roulette = result?.detail?.blocked_until + 10;
+          } else if (!_.isEmpty(get_roulette?.detail)) {
+            sleep_roulette = get_roulette?.detail?.blocked_until + 10;
           }
 
           await sleep(2);
@@ -309,14 +318,35 @@ class NonSessionTapper {
           const data = {
             coins: _.random(700, 820),
           };
-          const result = await this.api.claim_bonus(http_client, data);
-          if (result?.success == true) {
-            logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💰 Hold to earn claimed successfully | Reward: <la>${data?.coins}</la>`
-            );
+          const get_bonus = await this.api.get_bonus(http_client);
+          if (!_.isEmpty(get_bonus) && get_bonus?.success == true) {
+            const result = await this.api.claim_bonus(http_client, data);
+            if (!_.isEmpty(result) && result?.success == true) {
+              logger.info(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💰 Hold to earn claimed successfully | Reward: <la>${data?.coins}</la>`
+              );
+            }
             sleep_hold_to_earn = _.floor(Date.now() / 1000) + 28820;
-          } else if (!_.isEmpty(result?.detail)) {
-            sleep_hold_to_earn = result?.detail?.blocked_until + 10;
+          } else if (!_.isEmpty(get_bonus?.detail)) {
+            sleep_hold_to_earn = get_bonus?.detail?.blocked_until + 10;
+          }
+
+          await sleep(2);
+        }
+
+        if (settings.AUTO_PLAY_SWIPE_COIN && sleep_swipe < currentTime) {
+          const coins = _.random(200, 300);
+          const get_swipe = await this.api.get_swipe(http_client);
+          if (!_.isEmpty(get_swipe) && get_swipe?.success == true) {
+            const result = await this.api.claim_swipe(http_client, coins);
+            if (!_.isEmpty(result) && result?.success == true) {
+              logger.info(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💰 Swipe coin claimed successfully | Reward: <la>${coins}</la>`
+              );
+            }
+            sleep_swipe = _.floor(Date.now() / 1000) + 28820;
+          } else if (!_.isEmpty(get_swipe?.detail)) {
+            sleep_swipe = get_swipe?.detail?.blocked_until + 10;
           }
 
           await sleep(2);

@@ -63,7 +63,10 @@ class ApiRequest {
       );
       return response.data;
     } catch (error) {
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
       if (error?.response?.data?.message) {
@@ -87,7 +90,10 @@ class ApiRequest {
       );
       return response.data;
     } catch (error) {
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
       if (error?.response?.data?.message) {
@@ -111,7 +117,10 @@ class ApiRequest {
       );
       return response.data;
     } catch (error) {
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
       if (error?.response?.data?.message) {
@@ -135,9 +144,13 @@ class ApiRequest {
       );
       return response.data;
     } catch (error) {
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
+
       if (error?.response?.data?.message) {
         logger.warning(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ⚠️ Error while <b>getting bonus:</b> ${error?.response?.data?.message}`
@@ -152,6 +165,56 @@ class ApiRequest {
     }
   }
 
+  async get_roulette(http_client) {
+    try {
+      const response = await http_client.get(`${app.apiUrl}/api/roulette/`);
+      return response.data;
+    } catch (error) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
+        return null;
+      }
+      if (error?.response?.data?.message) {
+        logger.warning(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ⚠️ Error while <b>getting roulette:</b> ${error?.response?.data?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>getting roulette:</b> ${error.message}`
+        );
+      }
+
+      return null;
+    }
+  }
+
+  async get_swipe(http_client) {
+    try {
+      const response = await http_client.get(`${app.apiUrl}/api/swipe_coin/`);
+      return response.data;
+    } catch (error) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
+        return null;
+      }
+      if (error?.response?.data?.message) {
+        logger.warning(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ⚠️ Error while <b>getting swipe:</b> ${error?.response?.data?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>getting swipe:</b> ${error.message}`
+        );
+      }
+
+      return null;
+    }
+  }
+
   async claim_visit(http_client) {
     try {
       const response = await http_client.post(
@@ -159,7 +222,10 @@ class ApiRequest {
       );
       return response.data;
     } catch (error) {
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
       if (error?.response?.data?.message) {
@@ -188,7 +254,10 @@ class ApiRequest {
         return error?.response?.data;
       }
 
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
       if (error?.response?.data?.message) {
@@ -213,7 +282,10 @@ class ApiRequest {
       );
       return response.data;
     } catch (error) {
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         logger.warning(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Sever Error with ${this.bot_name} while <b>claiming task</b>. Retrying again...`
         );
@@ -249,7 +321,10 @@ class ApiRequest {
         return error?.response?.data;
       }
 
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
       if (error?.response?.data?.message) {
@@ -268,13 +343,16 @@ class ApiRequest {
 
   async claim_roulette(http_client) {
     try {
-      const response = await http_client.post(`${app.apiUrl}/api/roulette`);
+      const response = await http_client.post(`${app.apiUrl}/api/roulette/`);
       return response.data;
     } catch (error) {
       if (error?.response?.status == 400 && error?.response?.data?.detail) {
         return error?.response?.data;
       }
-      if (error?.response?.status >= 500 && error?.response?.status <= 599) {
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
         return null;
       }
       if (error?.response?.data?.message) {
@@ -284,6 +362,37 @@ class ApiRequest {
       } else {
         logger.error(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>claiming roulette:</b> ${error.message}`
+        );
+      }
+
+      return null;
+    }
+  }
+
+  async claim_swipe(http_client, coins) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/api/swipe_coin/`,
+        JSON.stringify({ coins })
+      );
+      return response.data;
+    } catch (error) {
+      if (error?.response?.status == 400 && error?.response?.data?.detail) {
+        return error?.response?.data;
+      }
+      if (
+        (error?.response?.status >= 500 && error?.response?.status <= 599) ||
+        error?.response?.status == 400
+      ) {
+        return null;
+      }
+      if (error?.response?.data?.message) {
+        logger.warning(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ⚠️ Error while <b>claiming swipe coin:</b> ${error?.response?.data?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>claiming swipe coin:</b> ${error.message}`
         );
       }
 

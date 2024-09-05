@@ -9,6 +9,10 @@ const settings = {
     ? process.env.AUTO_PLAY_ROULETTE.toLowerCase() === "true"
     : true,
 
+  AUTO_PLAY_SWIPE_COIN: process.env.AUTO_PLAY_SWIPE_COIN
+    ? process.env.AUTO_PLAY_SWIPE_COIN.toLowerCase() === "true"
+    : true,
+
   AUTO_CLAIM_TASKS: process.env.AUTO_CLAIM_TASKS
     ? process.env.AUTO_CLAIM_TASKS.toLowerCase() === "true"
     : true,
