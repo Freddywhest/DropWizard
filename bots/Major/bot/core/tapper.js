@@ -453,7 +453,7 @@ class Tapper {
         }
 
         if (settings.AUTO_PLAY_SWIPE_COIN && sleep_swipe < currentTime) {
-          const coins = _.random(200, 300);
+          const coins = _.random(2950, 3000);
           const get_swipe = await this.api.get_swipe(http_client);
 
           if (!_.isEmpty(get_swipe) && get_swipe?.success == true) {
