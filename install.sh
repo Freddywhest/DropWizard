@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 echo "Copying .env-general-example to .env-general..."
 cp .env-general-example .env-general
 
@@ -38,8 +37,8 @@ if command_exists node; then
 else
   echo "Node.js is not installed. Installing Node.js..."
 
-  # Install Node.js (This assumes a Debian-based system like Ubuntu)
-  curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+  # Install Node.js 18 (This assumes a Debian-based system like Ubuntu)
+  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
   sudo apt-get install -y nodejs
 
   # Verify installation
