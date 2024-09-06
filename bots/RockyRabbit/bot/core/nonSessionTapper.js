@@ -222,13 +222,6 @@ class NonSessionTapper {
             logger.info(
               `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Joining RockyRabit channel before claiming daily reward...`
             );
-            await this.tg_client.invoke(
-              new Api.channels.JoinChannel({
-                channel: await this.tg_client.getInputEntity(
-                  app.rockyRabitChannel
-                ),
-              })
-            );
             continue;
           } else if (
             typeof reward_data === "string" &&

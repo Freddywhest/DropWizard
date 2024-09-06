@@ -126,22 +126,6 @@ class Tapper {
         logger.info(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
         );
-        const botHistory = await this.tg_client.invoke(
-          new Api.messages.GetHistory({
-            peer: await this.tg_client.getInputEntity(app.bot),
-            limit: 10,
-          })
-        );
-        if (botHistory.messages.length < 1) {
-          await this.tg_client.invoke(
-            new Api.messages.SendMessage({
-              message: "/start",
-              silent: true,
-              noWebpage: true,
-              peer: await this.tg_client.getInputEntity(app.peer),
-            })
-          );
-        }
       }
 
       const result = await this.tg_client.invoke(
@@ -250,6 +234,7 @@ class Tapper {
     let exceeded_energy = 0;
     let exceeded_turbo = 0;
     let sleep_empty_energy = 0;
+    let checked_channel = false;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
       http_client = axios.create({
@@ -336,16 +321,19 @@ class Tapper {
             typeof reward_data === "string" &&
             reward_data.includes("not_subscribed")
           ) {
-            logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Joining RockyRabit channel before claiming daily reward...`
-            );
-            await this.tg_client.invoke(
-              new Api.channels.JoinChannel({
-                channel: await this.tg_client.getInputEntity(
-                  app.rockyRabitChannel
-                ),
-              })
-            );
+            if (!checked_channel) {
+              checked_channel = true;
+              logger.info(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Joining RockyRabit channel before claiming daily reward...`
+              );
+              await this.tg_client.invoke(
+                new Api.channels.JoinChannel({
+                  channel: await this.tg_client.getInputEntity(
+                    app.rockyRabitChannel
+                  ),
+                })
+              );
+            }
             continue;
           } else if (
             typeof reward_data === "string" &&
