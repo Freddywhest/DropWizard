@@ -24,11 +24,10 @@ const settings = {
     ? parseInt(process.env.MIN_DTC_TO_STOP_SPIN_TO_EARN)
     : 20,
 
-  SLEEP_BETWEEN_TAP: process.env.SLEEP_BETWEEN_TAP
-    ? process.env.SLEEP_BETWEEN_TAP.split(",").map((str) =>
-        parseInt(str.trim())
-      )
-    : 70,
+  SLEEP_BETWEEN_TAP:
+    process.env.SLEEP_BETWEEN_TAP && /^\d+$/.test(process.env.SLEEP_BETWEEN_TAP)
+      ? parseInt(process.env.SLEEP_BETWEEN_TAP)
+      : 70,
 
   USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 
