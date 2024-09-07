@@ -12,7 +12,6 @@ const ApiRequest = require("./api");
 var _ = require("lodash");
 const parser = require("../../../../utils/parser");
 const path = require("path");
-const moment = require("moment");
 
 class Tapper {
   constructor(tg_client, bot_name) {
@@ -141,7 +140,7 @@ class Tapper {
           platform,
           from_bot_menu: false,
           url: app.webviewUrl,
-          startParam: "VSLNu6frT0NF3Vw1",
+          startParam: "1167045062",
         })
       );
       const authUrl = result.url;
@@ -150,11 +149,7 @@ class Tapper {
         decodeURIComponent(this.#clean_tg_web_data(tgWebData))
       );
 
-      const json = {
-        initData: parser.toQueryString(data),
-        platform,
-      };
-      return json;
+      return parser.toQueryString(data);
     } catch (error) {
       if (error.message.includes("AUTH_KEY_DUPLICATED")) {
         logger.error(
@@ -203,22 +198,6 @@ class Tapper {
     }
   }
 
-  async #get_access_token(tgWebData, http_client) {
-    try {
-      const response = await http_client.post(
-        `${app.apiUrl}/api/v1/auth/validate-init/v2`,
-        JSON.stringify(tgWebData)
-      );
-
-      return response.data;
-    } catch (error) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
-      );
-      await sleep(3); // 3 seconds delay
-    }
-  }
-
   async #check_proxy(http_client, proxy) {
     try {
       const response = await http_client.get("https://httpbin.org/ip");
@@ -252,10 +231,8 @@ class Tapper {
     let http_client;
     let access_token_created_time = 0;
 
-    let farm_info;
-    let user_balance;
-    let farmingTime = 0;
-    let access_token;
+    let mining_info;
+    let sleep_time = 0;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
       http_client = axios.create({
@@ -279,7 +256,7 @@ class Tapper {
     while (true) {
       try {
         const currentTime = _.floor(Date.now() / 1000);
-        if (currentTime - access_token_created_time >= 1800) {
+        if (currentTime - access_token_created_time >= 3600) {
           const tg_web_data = await this.#get_tg_web_data();
           if (
             _.isNull(tg_web_data) ||
@@ -290,138 +267,40 @@ class Tapper {
             continue;
           }
 
-          access_token = await this.#get_access_token(tg_web_data, http_client);
-          http_client.defaults.headers[
-            "authorization"
-          ] = `Bearer ${access_token?.token}`;
+          http_client.defaults.headers["telegramrawdata"] = tg_web_data;
           access_token_created_time = currentTime;
           await sleep(2);
         }
 
-        farm_info = await this.api.get_farm_info(http_client);
-        user_balance = await this.api.get_balance(http_client);
-        if (!farm_info || !user_balance) {
+        mining_info = await this.api.get_mining_info(http_client);
+        if (_.isEmpty(mining_info)) {
           continue;
         }
 
-        //Claim quiz
-        if (settings.AUTO_DAILY_QUIZ) {
-          const result_daily_quiz = await this.api.get_quiz(http_client);
-          const result_daily_quiz_answer = await this.api.get_quiz_answer(
-            http_client
+        //Creating user
+        if (_.isNull(mining_info?.userMining)) {
+          await this.api.start_param(http_client);
+          await this.api.create_mining_user(http_client);
+          logger.info(
+            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ User created successfully. Restarting the process...`
           );
-
-          if (
-            !_.isEmpty(result_daily_quiz) &&
-            !result_daily_quiz?.answer?.isCorrect &&
-            !_.isEmpty(result_daily_quiz_answer) &&
-            !_.isEmpty(result_daily_quiz_answer?.timefarm) &&
-            moment(new Date(result_daily_quiz?.date)).isValid() &&
-            moment(
-              new Date(result_daily_quiz_answer?.timeFarmDate)
-            ).isValid() &&
-            moment(new Date(result_daily_quiz_answer?.timeFarmDate)).isSame(
-              new Date(result_daily_quiz?.date)
-            )
-          ) {
-            const result_claim_quiz = await this.api.claim_quiz(
-              http_client,
-              result_daily_quiz_answer?.timefarm
-            );
-            if (result_claim_quiz?.isCorrect === true) {
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed daily quiz | Reward: <la>${result_daily_quiz?.reward}</la> | Answer: <bl>${result_daily_quiz_answer?.timefarm}</bl>`
-              );
-              user_balance = await this.api.get_balance(http_client);
-            }
-          }
+          continue;
         }
 
-        if (
-          settings.CLAIM_FRIENDS_REWARD &&
-          user_balance?.referral?.availableBalance > 10
-        ) {
-          const result_claim_friend = await this.api.claim_friends_balance(
-            http_client
-          );
+        logger.info(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💸 Balance: <la>${mining_info?.userMining?.gotAmount}</la> | Earn per hour: <pi>${mining_info?.userMining?.speed}</pi> | Mined: <ye>${mining_info?.userMining?.miningAmount}</ye>`
+        );
 
-          if (
-            typeof result_claim_friend == "string" &&
-            result_claim_friend.toLowerCase() == "ok"
-          ) {
+        await sleep(2);
+
+        if (settings.AUTO_MINE && mining_info?.userMining?.miningAmount > 0.1) {
+          const claim_mining = await this.api.claim_mining(http_client);
+          if (!_.isEmpty(claim_mining)) {
             logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed friends reward | Reward: <la>${user_balance?.referral?.availableBalance}</la>`
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ Mining successfully claimed | Balance: <bl>${claim_mining?.userMining?.gotAmount}</bl> (<gr>+${mining_info?.userMining?.miningAmount}</gr>)`
             );
-            user_balance = await this.api.get_balance(http_client);
           }
-        }
-
-        await sleep(5);
-
-        // Farming
-        if (settings.AUTO_FARMING) {
-          farm_info = await this.api.get_farm_info(http_client);
-          if (
-            farm_info?.activeFarmingStartedAt &&
-            farm_info?.farmingDurationInSec
-          ) {
-            farmingTime = _.floor(
-              new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                farm_info?.farmingDurationInSec
-            );
-
-            if (farmingTime < currentTime) {
-              const result_claim = await this.api.claim_farming(http_client);
-              if (result_claim) {
-                logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed farming reward | Balance: <la>${result_claim?.balance}</la>`
-                );
-              }
-              const result_start = await this.api.start_farming(http_client);
-
-              if (result_start) {
-                farm_info = await this.api.get_farm_info(http_client);
-                farmingTime = _.floor(
-                  new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                    farm_info?.farmingDurationInSec
-                );
-                logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${
-                    this.session_name
-                  } | 🤖 Started farming | Ends in: <pi>${
-                    farmingTime - currentTime > 0
-                      ? farmingTime - currentTime
-                      : 0
-                  }</pi> seconds.`
-                );
-              }
-            } else {
-              farm_info = await this.api.get_farm_info(http_client);
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${
-                  this.session_name
-                } | 🤖 Farming ends in: <pi>${
-                  farmingTime - currentTime > 0 ? farmingTime - currentTime : 0
-                }</pi> seconds.`
-              );
-            }
-          } else {
-            const result_start = await this.api.start_farming(http_client);
-            if (result_start) {
-              farm_info = await this.api.get_farm_info(http_client);
-              farmingTime = _.floor(
-                new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                  farm_info?.farmingDurationInSec
-              );
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${
-                  this.session_name
-                } | 🤖 Started farming | Ends in: <pi>${
-                  farmingTime - currentTime > 0 ? farmingTime - currentTime : 0
-                }</pi> seconds.`
-              );
-            }
-          }
+          mining_info = await this.api.get_mining_info(http_client);
         }
       } catch (error) {
         logger.error(
@@ -429,9 +308,15 @@ class Tapper {
         );
       } finally {
         logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 😴 sleeping for ${settings.SLEEP_BETWEEN_REQUESTS} seconds...`
+          `<ye>[${this.bot_name}]</ye> | ${
+            this.session_name
+          } | 😴 sleeping for ${
+            sleep_time > 0 ? sleep_time : settings.SLEEP_BETWEEN_REQUESTS
+          } seconds...`
         );
-        await sleep(settings.SLEEP_BETWEEN_REQUESTS);
+        await sleep(
+          sleep_time > 0 ? sleep_time : settings.SLEEP_BETWEEN_REQUESTS
+        );
       }
     }
   }

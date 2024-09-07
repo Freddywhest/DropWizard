@@ -14,6 +14,8 @@ const LostDogsTapper = require("../bots/LostDogs/bot/core/tapper");
 const DotcoinTapper = require("../bots/Dotcoin/bot/core/tapper");
 const settings = require("./config");
 const RockyRabbitTapper = require("../bots/RockyRabbit/bot/core/tapper");
+const PocketFiNonSessionTapper = require("../bots/PocketFi/bot/core/nonSessionTapper");
+const PocketFiTapper = require("../bots/PocketFi/bot/core/tapper");
 
 const tappers = {
   blum: {
@@ -43,6 +45,10 @@ const tappers = {
   lostdogs: {
     class: LostDogsTapper,
     use: settings.LOSTDOGS,
+  },
+  pocketfi: {
+    class: PocketFiTapper,
+    use: settings.POCKETFI,
   },
 };
 
@@ -74,6 +80,10 @@ const nonSessionTappers = {
   lostdogs: {
     class: LostDogsNonSessionTapper,
     use: settings.LOSTDOGS,
+  },
+  pocketfi: {
+    class: PocketFiNonSessionTapper,
+    use: settings.POCKETFI,
   },
 };
 

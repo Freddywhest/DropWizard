@@ -24,6 +24,9 @@ cp .env-lostdogs-example .env-lostdogs
 echo "Copying .env-major-example to .env-major..."
 cp .env-major-example .env-major
 
+echo "Copying .env-pocketfi-example to .env-pocketfi..."
+cp .env-pocketfi-example .env-pocketfi
+
 echo "Please edit the .env-general file to add your API_ID and API_HASH after Installation."
 
 # Function to check if a command exists

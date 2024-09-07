@@ -3,7 +3,6 @@ const logger = require("../../../../utils/logger");
 const headers = require("./header");
 const { SocksProxyAgent } = require("socks-proxy-agent");
 const settings = require("../config/config");
-const app = require("../config/app");
 const user_agents = require("../../../../utils/userAgents");
 const fs = require("fs");
 const sleep = require("../../../../utils/sleep");
@@ -79,30 +78,9 @@ class NonSessionTapper {
     }
   }
 
-  #get_platform(userAgent) {
-    const platformPatterns = [
-      { pattern: /iPhone/i, platform: "ios" },
-      { pattern: /Android/i, platform: "android" },
-      { pattern: /iPad/i, platform: "ios" },
-    ];
-
-    for (const { pattern, platform } of platformPatterns) {
-      if (pattern.test(userAgent)) {
-        return platform;
-      }
-    }
-
-    return "android";
-  }
-
   async #get_tg_web_data() {
     try {
-      const platform = this.#get_platform(this.#get_user_agent());
-      const json = {
-        initData: this.query_id,
-        platform,
-      };
-      return json;
+      return this.query_id;
     } catch (error) {
       logger.error(
         `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error during Authorization: ${error}`
@@ -114,28 +92,6 @@ class NonSessionTapper {
       logger.info(
         `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
       );
-    }
-  }
-
-  async #get_access_token(tgWebData, http_client) {
-    try {
-      const response = await http_client.post(
-        `${app.apiUrl}/api/v1/auth/validate-init/v2`,
-        JSON.stringify(tgWebData)
-      );
-
-      return response.data;
-    } catch (error) {
-      if (error?.response?.data) {
-        logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: Invalid or expired query id`
-        );
-      } else {
-        logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
-        );
-      }
-      await sleep(3); // 3 seconds delay
     }
   }
 
@@ -172,10 +128,8 @@ class NonSessionTapper {
     let http_client;
     let access_token_created_time = 0;
 
-    let farm_info;
-    let user_balance;
-    let farmingTime = 0;
-    let access_token;
+    let mining_info;
+    let sleep_time = 0;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
       http_client = axios.create({
@@ -199,101 +153,51 @@ class NonSessionTapper {
     while (true) {
       try {
         const currentTime = _.floor(Date.now() / 1000);
-        if (currentTime - access_token_created_time >= 1800) {
+        if (currentTime - access_token_created_time >= 3600) {
           const tg_web_data = await this.#get_tg_web_data();
-          access_token = await this.#get_access_token(tg_web_data, http_client);
-          http_client.defaults.headers[
-            "authorization"
-          ] = `Bearer ${access_token?.token}`;
+          if (
+            _.isNull(tg_web_data) ||
+            _.isUndefined(tg_web_data) ||
+            !tg_web_data ||
+            _.isEmpty(tg_web_data)
+          ) {
+            continue;
+          }
+
+          http_client.defaults.headers["telegramrawdata"] = tg_web_data;
           access_token_created_time = currentTime;
           await sleep(2);
         }
 
-        farm_info = await this.api.get_farm_info(http_client);
-        user_balance = await this.api.get_balance(http_client);
-        if (!farm_info || !user_balance) {
+        mining_info = await this.api.get_mining_info(http_client);
+        if (_.isEmpty(mining_info)) {
           continue;
         }
 
-        if (
-          settings.CLAIM_FRIENDS_REWARD &&
-          user_balance?.referral?.availableBalance > 10
-        ) {
-          const result_claim_friend = await this.api.claim_friends_balance(
-            http_client
+        //Creating user
+        if (_.isNull(mining_info?.userMining)) {
+          await this.api.start_param(http_client);
+          await this.api.create_mining_user(http_client);
+          logger.info(
+            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ User created successfully. Restarting the process...`
           );
-
-          if (
-            typeof result_claim_friend == "string" &&
-            result_claim_friend.toLowerCase() == "ok"
-          ) {
-            logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed friends reward | Reward: <la>${user_balance?.referral?.availableBalance}</la>`
-            );
-            user_balance = await this.api.get_balance(http_client);
-          }
+          continue;
         }
 
-        await sleep(5);
+        logger.info(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💸 Balance: <la>${mining_info?.userMining?.gotAmount}</la> | Earn per hour: <pi>${mining_info?.userMining?.speed}</pi> | Mined: <ye>${mining_info?.userMining?.miningAmount}</ye>`
+        );
 
-        // Farming
-        if (settings.AUTO_FARMING) {
-          if (farm_info?.activeFarmingStartedAt && farm_info?.farmingReward) {
-            farmingTime = _.floor(
-              new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                farm_info?.farmingReward
+        await sleep(2);
+
+        if (settings.AUTO_MINE && mining_info?.userMining?.miningAmount > 0.1) {
+          const claim_mining = await this.api.claim_mining(http_client);
+          if (!_.isEmpty(claim_mining)) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ✅ Mining successfully claimed | Balance: <bl>${claim_mining?.userMining?.gotAmount}</bl> (<gr>+${mining_info?.userMining?.miningAmount}</gr>)`
             );
-
-            if (farmingTime < currentTime) {
-              const result_claim = await this.api.claim_farming(http_client);
-              if (result_claim) {
-                logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🎉 Claimed farming reward | Balance: <la>${result_claim?.balance}</la>`
-                );
-              }
-              const result_start = await this.api.start_farming(http_client);
-              if (result_start) {
-                farm_info = await this.api.get_farm_info(http_client);
-                farmingTime = new _.floor(
-                  Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                    farm_info?.farmingReward
-                );
-                logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${
-                    this.session_name
-                  } | 🤖 Started farming | Ends in: <pi>${
-                    farmingTime - currentTime > 0
-                      ? farmingTime - currentTime
-                      : 0
-                  }</pi> seconds.`
-                );
-              }
-            } else {
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${
-                  this.session_name
-                } | 🤖 Farming ends in: <pi>${
-                  farmingTime - currentTime > 0 ? farmingTime - currentTime : 0
-                }</pi> seconds.`
-              );
-            }
-          } else {
-            const result_start = await this.api.start_farming(http_client);
-            if (result_start) {
-              farm_info = await this.api.get_farm_info(http_client);
-              farmingTime = _.floor(
-                new Date(farm_info?.activeFarmingStartedAt).getTime() / 1000 +
-                  farm_info?.farmingReward
-              );
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${
-                  this.session_name
-                } | 🤖 Started farming | Ends in: <pi>${
-                  farmingTime - currentTime > 0 ? farmingTime - currentTime : 0
-                }</pi> seconds.`
-              );
-            }
           }
+          mining_info = await this.api.get_mining_info(http_client);
         }
       } catch (error) {
         logger.error(
@@ -301,9 +205,15 @@ class NonSessionTapper {
         );
       } finally {
         logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 😴 sleeping for ${settings.SLEEP_BETWEEN_REQUESTS} seconds...`
+          `<ye>[${this.bot_name}]</ye> | ${
+            this.session_name
+          } | 😴 sleeping for ${
+            sleep_time > 0 ? sleep_time : settings.SLEEP_BETWEEN_REQUESTS
+          } seconds...`
         );
-        await sleep(settings.SLEEP_BETWEEN_REQUESTS);
+        await sleep(
+          sleep_time > 0 ? sleep_time : settings.SLEEP_BETWEEN_REQUESTS
+        );
       }
     }
   }

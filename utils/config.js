@@ -23,6 +23,9 @@ const settings = {
   LOSTDOGS: process.env.LOSTDOGS
     ? process.env.LOSTDOGS.toLowerCase() === "true"
     : true,
+  POCKETFI: process.env.POCKETFI
+    ? process.env.POCKETFI.toLowerCase() === "true"
+    : true,
   MAJOR: process.env.MAJOR ? process.env.MAJOR.toLowerCase() === "true" : true,
   USE_QUERY_ID_TOMARKET: process.env.USE_QUERY_ID_TOMARKET
     ? process.env.USE_QUERY_ID_TOMARKET.toLowerCase() === "true"
@@ -44,6 +47,9 @@ const settings = {
     : false,
   USE_QUERY_ID_MAJOR: process.env.USE_QUERY_ID_MAJOR
     ? process.env.USE_QUERY_ID_MAJOR.toLowerCase() === "true"
+    : false,
+  USE_QUERY_ID_POCKETFI: process.env.USE_QUERY_ID_POCKETFI
+    ? process.env.USE_QUERY_ID_POCKETFI.toLowerCase() === "true"
     : false,
   USE_PROXY_FROM_FILE: process.env.USE_PROXY_FROM_FILE
     ? process.env.USE_PROXY_FROM_FILE.toLowerCase() === "true"

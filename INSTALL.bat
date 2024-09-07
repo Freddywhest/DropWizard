@@ -23,6 +23,9 @@ copy .env-lostdogs-example .env-lostdogs
 echo Copying .env-major-example to .env-major...
 copy .env-major-example .env-major
 
+echo Copying .env-pocketfi-example to .env-pocketfi...
+copy .env-pocketfi-example .env-pocketfi
+
 echo Please edit the .env-general file to add your API_ID and API_HASH after Installation.
 echo Installing dependencies...
 npm install
