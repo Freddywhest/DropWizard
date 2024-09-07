@@ -232,7 +232,6 @@ class Tapper {
     let access_token_created_time = 0;
 
     let mining_info;
-    let sleep_time = 0;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
       http_client = axios.create({
@@ -308,15 +307,9 @@ class Tapper {
         );
       } finally {
         logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${
-            this.session_name
-          } | 😴 sleeping for ${
-            sleep_time > 0 ? sleep_time : settings.SLEEP_BETWEEN_REQUESTS
-          } seconds...`
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 😴 sleeping for ${settings.SLEEP_BETWEEN_REQUESTS} seconds...`
         );
-        await sleep(
-          sleep_time > 0 ? sleep_time : settings.SLEEP_BETWEEN_REQUESTS
-        );
+        await sleep(settings.SLEEP_BETWEEN_REQUESTS);
       }
     }
   }
