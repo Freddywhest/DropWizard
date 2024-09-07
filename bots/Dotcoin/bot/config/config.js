@@ -1,4 +1,5 @@
 require("dotenv").config({ path: ".env-dotcoin" });
+const _isArray = require("../../../../utils/_isArray");
 const generalSetting = require("../../../../utils/config");
 const settings = {
   AUTO_UPGRADE_MULTITAP: process.env.AUTO_UPGRADE_MULTITAP
@@ -25,9 +26,12 @@ const settings = {
     : 20,
 
   SLEEP_BETWEEN_TAP:
-    process.env.SLEEP_BETWEEN_TAP && /^\d+$/.test(process.env.SLEEP_BETWEEN_TAP)
+    process.env.SLEEP_BETWEEN_TAP && _isArray(process.env.SLEEP_BETWEEN_TAP)
+      ? JSON.parse(process.env.SLEEP_BETWEEN_TAP)
+      : process.env.SLEEP_BETWEEN_TAP &&
+        /^\d+$/.test(process.env.SLEEP_BETWEEN_TAP)
       ? parseInt(process.env.SLEEP_BETWEEN_TAP)
-      : 70,
+      : 150,
 
   USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
 
@@ -40,8 +44,7 @@ const settings = {
     : true,
 
   RANDOM_TAPS_COUNT:
-    process.env.RANDOM_TAPS_COUNT &&
-    Array.isArray(JSON.parse(process.env.RANDOM_TAPS_COUNT))
+    process.env.RANDOM_TAPS_COUNT && _isArray(process.env.RANDOM_TAPS_COUNT)
       ? JSON.parse(process.env.RANDOM_TAPS_COUNT)
       : [1000, 20000],
 };
