@@ -55,7 +55,7 @@ const nonSessionTappers = {
     class: ToMarketNonSessionTapper,
     use: settings.TOMARKET,
   },
-  tomarket: {
+  rockyrabbit: {
     class: RockyRabbitNonSessionTapper,
     use: settings.ROCKYRABBIT,
   },
