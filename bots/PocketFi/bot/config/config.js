@@ -12,10 +12,6 @@ const settings = {
     : 70,
 
   USE_PROXY_FROM_FILE: generalSetting.USE_PROXY_FROM_FILE,
-
-  USE_QUERY_ID: process.env.USE_QUERY_ID
-    ? process.env.USE_QUERY_ID.toLowerCase() === "true"
-    : false,
 };
 
 module.exports = settings;
