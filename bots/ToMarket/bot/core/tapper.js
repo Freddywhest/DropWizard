@@ -570,7 +570,6 @@ class Tapper {
               settings.SLEEP_BETWEEN_TAP[0],
               settings.SLEEP_BETWEEN_TAP[1]
             );
-            await sleep(start_sleep);
           } else {
             ran_sleep = _.random(450, 800);
           }
@@ -582,7 +581,7 @@ class Tapper {
         }
 
         logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Sleeping for ${start_sleep} seconds...`
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Sleeping for ${ran_sleep} seconds...`
         );
         await sleep(ran_sleep);
       }
