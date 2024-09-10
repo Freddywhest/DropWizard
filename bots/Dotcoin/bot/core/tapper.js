@@ -2,7 +2,6 @@ const { default: axios } = require("axios");
 const logger = require("../../../../utils/logger");
 const headers = require("./header");
 const { Api } = require("telegram");
-const { SocksProxyAgent } = require("socks-proxy-agent");
 const settings = require("../config/config");
 const app = require("../config/app");
 const user_agents = require("../../../../utils/userAgents");
@@ -116,11 +115,11 @@ class Tapper {
       if (!proxy) return null;
       let proxy_url;
       if (!proxy.password && !proxy.username) {
-        proxy_url = `socks${proxy.socksType}://${proxy.ip}:${proxy.port}`;
+        proxy_url = `${proxy.protocol}://${proxy.ip}:${proxy.port}`;
       } else {
-        proxy_url = `socks${proxy.socksType}://${proxy.username}:${proxy.password}@${proxy.ip}:${proxy.port}`;
+        proxy_url = `${proxy.protocol}://${proxy.username}:${proxy.password}@${proxy.ip}:${proxy.port}`;
       }
-      return new SocksProxyAgent(proxy_url);
+      return new HttpsProxyAgent(proxy_url);
     } catch (e) {
       logger.error(
         `<ye>[${this.bot_name}]</ye> | ${
@@ -135,13 +134,14 @@ class Tapper {
     try {
       await this.tg_client.start();
       const platform = this.#get_platform(this.#get_user_agent());
+
       if (!this.runOnce) {
         logger.info(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
         );
         const botHistory = await this.tg_client.invoke(
           new Api.messages.GetHistory({
-            peer: await this.tg_client.getInputEntity(app.bot),
+            peer: app.bot,
             limit: 10,
           })
         );
@@ -151,19 +151,21 @@ class Tapper {
               message: "/start",
               silent: true,
               noWebpage: true,
-              peer: await this.tg_client.getInputEntity(app.peer),
+              peer: app.bot,
             })
           );
         }
       }
+
+      await sleep(10);
+
       const result = await this.tg_client.invoke(
         new Api.messages.RequestWebView({
-          peer: await this.tg_client.getInputEntity(app.peer),
-          bot: await this.tg_client.getInputEntity(app.bot),
+          peer: app.bot,
+          bot: app.bot,
           platform,
-          from_bot_menu: false,
+          from_bot_menu: true,
           url: app.webviewUrl,
-          startParam: "r_1167045062",
         })
       );
 
@@ -212,9 +214,6 @@ class Tapper {
       }
       return null;
     } finally {
-      /* if (this.tg_client.connected) {
-        await this.tg_client.destroy();
-      } */
       await sleep(1);
       if (!this.runOnce) {
         logger.info(

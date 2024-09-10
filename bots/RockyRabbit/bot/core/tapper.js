@@ -1,8 +1,6 @@
-const { default: axios } = require("axios");
 const logger = require("../../../../utils/logger");
 const headers = require("./header");
 const { Api } = require("telegram");
-const { SocksProxyAgent } = require("socks-proxy-agent");
 const settings = require("../config/config");
 const app = require("../config/app");
 const user_agents = require("../../../../utils/userAgents");
@@ -17,6 +15,8 @@ const upgradeTabCardsBuying = require("../scripts/upgradeTabCardsBuying");
 const upgradeNoConditionCards = require("../scripts/upgradeNoConditionCards");
 const path = require("path");
 const _isArray = require("../../../../utils/_isArray");
+const { HttpsProxyAgent } = require("https-proxy-agent");
+const fdy = require("fdy-scraping");
 
 class Tapper {
   constructor(tg_client, bot_name) {
@@ -99,26 +99,6 @@ class Tapper {
     return "Unknown";
   }
 
-  #proxy_agent(proxy) {
-    try {
-      if (!proxy) return null;
-      let proxy_url;
-      if (!proxy.password && !proxy.username) {
-        proxy_url = `socks${proxy.socksType}://${proxy.ip}:${proxy.port}`;
-      } else {
-        proxy_url = `socks${proxy.socksType}://${proxy.username}:${proxy.password}@${proxy.ip}:${proxy.port}`;
-      }
-      return new SocksProxyAgent(proxy_url);
-    } catch (e) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${
-          this.session_name
-        } | Proxy agent error: ${e}\nProxy: ${JSON.stringify(proxy, null, 2)}`
-      );
-      return null;
-    }
-  }
-
   async #get_tg_web_data() {
     try {
       await this.tg_client.start();
@@ -127,12 +107,30 @@ class Tapper {
         logger.info(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
         );
+        const botHistory = await this.tg_client.invoke(
+          new Api.messages.GetHistory({
+            peer: app.bot,
+            limit: 10,
+          })
+        );
+        if (botHistory.messages.length < 1) {
+          await this.tg_client.invoke(
+            new Api.messages.SendMessage({
+              message: "/start",
+              silent: true,
+              noWebpage: true,
+              peer: app.bot,
+            })
+          );
+        }
       }
+
+      await sleep(10);
 
       const result = await this.tg_client.invoke(
         new Api.messages.RequestWebView({
-          peer: await this.tg_client.getInputEntity(app.peer),
-          bot: await this.tg_client.getInputEntity(app.bot),
+          peer: app.bot,
+          bot: app.bot,
           platform,
           from_bot_menu: true,
           url: app.webviewUrl,
@@ -179,9 +177,6 @@ class Tapper {
       }
       return null;
     } finally {
-      /* if (this.tg_client.connected) {
-        await this.tg_client.destroy();
-      } */
       await sleep(1);
       if (!this.runOnce) {
         logger.info(
@@ -238,22 +233,19 @@ class Tapper {
     let checked_channel = false;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
-      http_client = axios.create({
-        httpsAgent: this.#proxy_agent(proxy),
+      http_client = fdy.create({
         headers: this.headers,
-        withCredentials: true,
+        proxy,
       });
       const proxy_result = await this.#check_proxy(http_client, proxy);
       if (!proxy_result) {
-        http_client = axios.create({
+        http_client = fdy.create({
           headers: this.headers,
-          withCredentials: true,
         });
       }
     } else {
-      http_client = axios.create({
+      http_client = fdy.create({
         headers: this.headers,
-        withCredentials: true,
       });
     }
     while (true) {
@@ -327,13 +319,13 @@ class Tapper {
               logger.info(
                 `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Joining RockyRabit channel before claiming daily reward...`
               );
-              await this.tg_client.invoke(
+              /* await this.tg_client.invoke(
                 new Api.channels.JoinChannel({
                   channel: await this.tg_client.getInputEntity(
                     app.rockyRabitChannel
                   ),
                 })
-              );
+              ); */
             }
             continue;
           } else if (

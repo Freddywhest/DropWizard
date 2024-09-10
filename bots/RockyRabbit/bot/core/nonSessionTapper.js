@@ -1,7 +1,6 @@
 const { default: axios } = require("axios");
 const logger = require("../../../../utils/logger");
 const headers = require("./header");
-const { SocksProxyAgent } = require("socks-proxy-agent");
 const settings = require("../config/config");
 const app = require("../config/app");
 const user_agents = require("../../../../utils/userAgents");
@@ -15,6 +14,7 @@ const upgradeTabCardsBuying = require("../scripts/upgradeTabCardsBuying");
 const upgradeNoConditionCards = require("../scripts/upgradeNoConditionCards");
 const path = require("path");
 const _isArray = require("../../../../utils/_isArray");
+const { HttpsProxyAgent } = require("https-proxy-agent");
 
 class NonSessionTapper {
   constructor(query_id, query_name, bot_name) {
@@ -91,11 +91,11 @@ class NonSessionTapper {
       if (!proxy) return null;
       let proxy_url;
       if (!proxy.password && !proxy.username) {
-        proxy_url = `socks${proxy.socksType}://${proxy.ip}:${proxy.port}`;
+        proxy_url = `${proxy.protocol}://${proxy.ip}:${proxy.port}`;
       } else {
-        proxy_url = `socks${proxy.socksType}://${proxy.username}:${proxy.password}@${proxy.ip}:${proxy.port}`;
+        proxy_url = `${proxy.protocol}://${proxy.username}:${proxy.password}@${proxy.ip}:${proxy.port}`;
       }
-      return new SocksProxyAgent(proxy_url);
+      return new HttpsProxyAgent(proxy_url);
     } catch (e) {
       logger.error(
         `<ye>[${this.bot_name}]</ye> | ${
