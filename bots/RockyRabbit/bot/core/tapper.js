@@ -7,7 +7,6 @@ const user_agents = require("../../../../utils/userAgents");
 const fs = require("fs");
 const sleep = require("../../../../utils/sleep");
 const ApiRequest = require("./api");
-const parser = require("../../../../utils/parser");
 const _ = require("lodash");
 const moment = require("moment");
 const filterArray = require("../helpers/filterArray");
@@ -125,7 +124,7 @@ class Tapper {
         }
       }
 
-      await sleep(10);
+      await sleep(_.random(5, 10));
 
       const result = await this.tg_client.invoke(
         new Api.messages.RequestWebView({
@@ -139,10 +138,8 @@ class Tapper {
 
       const authUrl = result.url;
       const tgWebData = authUrl.split("#", 2)[1];
-      const data = parser.toJson(
-        decodeURIComponent(this.#clean_tg_web_data(tgWebData))
-      );
-      return parser.toQueryString(data);
+
+      return decodeURIComponent(this.#clean_tg_web_data(tgWebData));
     } catch (error) {
       if (error.message.includes("AUTH_KEY_DUPLICATED")) {
         logger.error(

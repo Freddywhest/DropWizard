@@ -148,12 +148,8 @@ class Tapper {
       );
       const authUrl = result.url;
       const tgWebData = authUrl.split("#", 2)[1];
-      const data = parser.toJson(
-        decodeURIComponent(this.#clean_tg_web_data(tgWebData))
-      );
-
       const json = {
-        query: parser.toQueryString(data),
+        query: decodeURIComponent(this.#clean_tg_web_data(tgWebData)),
       };
 
       return json;

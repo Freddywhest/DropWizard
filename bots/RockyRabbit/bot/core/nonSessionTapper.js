@@ -149,22 +149,19 @@ class NonSessionTapper {
     let sleep_empty_energy = 0;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
-      http_client = axios.create({
-        httpsAgent: this.#proxy_agent(proxy),
+      http_client = fdy.create({
         headers: this.headers,
-        withCredentials: true,
+        proxy,
       });
       const proxy_result = await this.#check_proxy(http_client, proxy);
       if (!proxy_result) {
-        http_client = axios.create({
+        http_client = fdy.create({
           headers: this.headers,
-          withCredentials: true,
         });
       }
     } else {
-      http_client = axios.create({
+      http_client = fdy.create({
         headers: this.headers,
-        withCredentials: true,
       });
     }
     while (true) {
