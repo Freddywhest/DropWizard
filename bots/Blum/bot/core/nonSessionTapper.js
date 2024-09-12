@@ -11,6 +11,7 @@ var _ = require("lodash");
 const path = require("path");
 const _isArray = require("../../../../utils/_isArray");
 const { HttpsProxyAgent } = require("https-proxy-agent");
+const fdy = require("fdy-scraping");
 
 class NonSessionTapper {
   constructor(query_id, query_name, bot_name) {
