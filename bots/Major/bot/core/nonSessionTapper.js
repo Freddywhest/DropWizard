@@ -13,6 +13,7 @@ const parser = require("../../../../utils/parser");
 const taskFilter = require("../utils/taskFilter");
 const _isArray = require("../../../../utils/_isArray");
 const { HttpsProxyAgent } = require("https-proxy-agent");
+const Fetchers = require("../utils/fetchers");
 
 class NonSessionTapper {
   constructor(query_id, query_name, bot_name) {

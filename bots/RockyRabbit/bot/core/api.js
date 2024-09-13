@@ -41,6 +41,29 @@ class ApiRequest {
     }
   }
 
+  async validate_query_id(http_client) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/api/v1/account/start`
+      );
+      if (!_.isEmpty(response?.data)) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (
+        error?.response?.data?.message
+          ?.toLowerCase()
+          ?.includes("sign is missing") ||
+        error?.response?.status == 401
+      ) {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
   async init_account(http_client) {
     const genders = ["male", "female"];
     const random = _.random(0, 1);

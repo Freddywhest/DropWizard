@@ -14,6 +14,7 @@ const moment = require("moment");
 const path = require("path");
 const _isArray = require("../../../../utils/_isArray");
 const { HttpsProxyAgent } = require("https-proxy-agent");
+const FdyTmp = require("fdy-tmp");
 
 class Tapper {
   constructor(tg_client, bot_name) {
@@ -114,15 +115,56 @@ class Tapper {
 
   async #get_tg_web_data() {
     try {
+      const tmp = new FdyTmp({
+        fileName: `${this.bot_name}.fdy.tmp`,
+        tmpPath: path.join(process.cwd(), "cache/queries"),
+      });
+      if (tmp.hasJsonElement(this.session_name)) {
+        const queryStringFromCache = tmp.getJson(this.session_name);
+        if (!_.isEmpty(queryStringFromCache)) {
+          const jsonData = {
+            init_data: queryStringFromCache,
+            invite_code: "00003Ozq",
+            is_bot: false,
+          };
+
+          const va_hc = axios.create({
+            headers: this.headers,
+            withCredentials: true,
+          });
+
+          const validate = await this.api.validate_query_id(va_hc, jsonData);
+
+          if (validate) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🔄 Getting data from cache...`
+            );
+            if (this.tg_client.connected) {
+              await this.tg_client.disconnect();
+              await this.tg_client.destroy();
+            }
+            await sleep(5);
+            return jsonData;
+          } else {
+            tmp.deleteJsonElement(this.session_name);
+          }
+        }
+      }
+      await this.tg_client.connect();
       await this.tg_client.start();
       const platform = this.#get_platform(this.#get_user_agent());
+
+      if (!this.bot) {
+        this.bot = await this.tg_client.getInputEntity(app.bot);
+      }
+
       if (!this.runOnce) {
         logger.info(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
         );
         const botHistory = await this.tg_client.invoke(
           new Api.messages.GetHistory({
-            peer: app.bot,
+            peer: this.bot,
             limit: 10,
           })
         );
@@ -132,25 +174,38 @@ class Tapper {
               message: "/start",
               silent: true,
               noWebpage: true,
-              peer: app.bot,
+              peer: this.bot,
             })
           );
         }
       }
 
-      await sleep(10);
+      await sleep(5);
 
       const result = await this.tg_client.invoke(
         new Api.messages.RequestWebView({
-          peer: app.bot,
-          bot: app.bot,
+          peer: this.bot,
+          bot: this.bot,
           platform,
           from_bot_menu: true,
           url: app.webviewUrl,
         })
       );
+
       const authUrl = result.url;
       const tgWebData = authUrl.split("#", 2)[1];
+      logger.info(
+        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💾 Storing data in cache...`
+      );
+
+      await sleep(5);
+
+      tmp
+        .addJson(
+          this.session_name,
+          decodeURIComponent(this.#clean_tg_web_data(tgWebData))
+        )
+        .save();
 
       const jsonData = {
         init_data: decodeURIComponent(this.#clean_tg_web_data(tgWebData)),
@@ -193,17 +248,16 @@ class Tapper {
       }
       return null;
     } finally {
-      /* if (this.tg_client.connected) {
+      if (this.tg_client.connected) {
+        await this.tg_client.disconnect();
         await this.tg_client.destroy();
-      } */
-      await sleep(1);
-      if (!this.runOnce) {
-        logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
-        );
       }
-
       this.runOnce = true;
+      if (this.sleep_floodwait > new Date().getTime() / 1000) {
+        await sleep(this.sleep_floodwait - new Date().getTime() / 1000);
+        return await this.#get_tg_web_data();
+      }
+      await sleep(3);
     }
   }
 
@@ -214,6 +268,15 @@ class Tapper {
         JSON.stringify(tgWebData)
       );
 
+      if (
+        response?.data?.status === 400 ||
+        response?.data?.message?.toLowerCase()?.includes("invalid init data")
+      ) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️ Error while getting Access Token: Invalid init data signature`
+        );
+        return null;
+      }
       return response.data;
     } catch (error) {
       if (error?.response?.status > 499) {
@@ -267,6 +330,7 @@ class Tapper {
     let next_combo_check = 0;
 
     let profile_data;
+    let rank_data;
     let sleep_daily_reward = 0;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
@@ -314,13 +378,76 @@ class Tapper {
         }
         // Get profile data
         profile_data = await this.api.get_user_data(http_client);
+        rank_data = await this.api.get_rank_data(http_client);
 
-        if (_.isEmpty(profile_data?.data)) {
+        if (_.isEmpty(profile_data?.data) || _.isEmpty(rank_data)) {
           continue;
         }
 
         await sleep(3);
 
+        if (rank_data?.data?.isCreated == false && rank_data?.status === 0) {
+          //log check rank data
+          logger.info(
+            `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Evaluating Rank...`
+          );
+
+          const evaluate_rank = await this.api.evaluate_rank_data(http_client);
+          if (!_.isEmpty(evaluate_rank?.data) && evaluate_rank?.status === 0) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Rank evaluated | Tomato stars: <pi>${evaluate_rank?.data?.stars}</pi> | Tomato scores: <la>${evaluate_rank?.data?.tomatoScore}</la>`
+            );
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Sleeping 3 seconds before checking rank`
+            );
+            await sleep(3);
+            const create_rank = await this.api.create_rank_data(http_client);
+            if (!_.isEmpty(create_rank?.data) && create_rank?.status === 0) {
+              logger.info(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Rank created | Current rank: <la>${create_rank?.data?.currentRank?.name}</la>`
+              );
+            } else {
+              logger.info(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Rank not created | Skipping....`
+              );
+            }
+          } else {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Rank not evaluated | Skipping....`
+            );
+          }
+        }
+        await sleep(3);
+        rank_data = await this.api.get_rank_data(http_client);
+        if (
+          !_.isEmpty(rank_data?.data) &&
+          rank_data?.status === 0 &&
+          rank_data?.data?.isCreated == true
+        ) {
+          if (rank_data?.data?.unusedStars > 0) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Upgrading rank with <bl>${rank_data?.data?.unusedStars}</bl> stars`
+            );
+            await sleep(2);
+
+            const upgrade_rank = await this.api.upgrade_rank(http_client, {
+              stars: rank_data?.data?.unusedStars,
+            });
+            if (!_.isEmpty(upgrade_rank?.data) && upgrade_rank?.status === 0) {
+              logger.info(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Rank upgraded | New rank: <la>${upgrade_rank?.data?.currentRank?.name}</la>`
+              );
+            } else {
+              logger.warning(
+                `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Could not upgrade rank`
+              );
+            }
+          } else {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Your current rank is <la>${rank_data?.data?.currentRank?.name}</la> | Stars used: <pi>${rank_data?.data?.usedStars}</pi>`
+            );
+          }
+        }
         // Claim daily reward
         if (
           settings.AUTO_CLAIM_DAILY_REWARD &&
@@ -464,12 +591,13 @@ class Tapper {
                 http_client,
                 farm_info_data
               );
+
               if (claim_farm?.status == 0) {
                 await sleep(5);
                 profile_data = await this.api.get_user_data(http_client);
                 await this.api.start_farming(http_client, farm_info_data);
                 logger.info(
-                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🌱 Claimed farm reward | Balance: <la>${profile_data?.data?.available_balance}</la> <gr>(+${claim_farm?.data?.points})</gr>`
+                  `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🌱 Claimed farm reward | Balance: <la>${profile_data?.data?.available_balance}</la> <gr>(+${claim_farm?.data?.points})</gr> | Play Passes: ${profile_data?.data?.play_passes}`
                 );
               } else {
                 logger.warning(

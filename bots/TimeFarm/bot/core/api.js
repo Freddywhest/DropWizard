@@ -29,6 +29,31 @@ class ApiRequest {
     }
   }
 
+  async validate_query_id(http_client, data) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/api/v1/auth/validate-init/v2`,
+        JSON.stringify(data)
+      );
+
+      if (!_.isEmpty(response?.data)) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (
+        error?.response?.data?.error?.message
+          ?.toLowerCase()
+          ?.includes("unauthorized") ||
+        error?.response?.status == 401
+      ) {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
   async get_balance(http_client) {
     try {
       const response = await http_client.get(`${app.apiUrl}/api/v1/balance`);

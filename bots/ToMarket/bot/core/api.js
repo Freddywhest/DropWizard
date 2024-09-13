@@ -1,6 +1,7 @@
 const logger = require("../../../../utils/logger");
 const sleep = require("../../../../utils/sleep");
 const app = require("../config/app");
+const _ = require("lodash");
 
 class ApiRequest {
   constructor(session_name, bot_name) {
@@ -31,6 +32,37 @@ class ApiRequest {
         }`
       );
       await sleep(3); // Sleep for 3 seconds
+    }
+  }
+
+  async validate_query_id(http_client, data) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/tomarket-game/v1/user/login`,
+        JSON.stringify(data)
+      );
+      if (
+        response?.data?.status === 400 ||
+        response?.data?.message?.toLowerCase()?.includes("invalid init data")
+      ) {
+        return false;
+      }
+
+      if (!_.isEmpty(response?.data?.data?.access_token)) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (
+        error?.response?.data?.message
+          ?.toLowerCase()
+          ?.includes("invalid init data signature") ||
+        error?.response?.status == 401
+      ) {
+        return false;
+      }
+
+      throw error;
     }
   }
 
@@ -227,6 +259,87 @@ class ApiRequest {
       } else {
         logger.error(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>starting stars claim:</b>: ${error.message}`
+        );
+      }
+      return null;
+    }
+  }
+
+  async get_rank_data(http_client) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/tomarket-game/v1/rank/data`
+      );
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        logger.warning(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>getting rank data:</b> ${error?.response?.data?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>getting rank data:</b>: ${error.message}`
+        );
+      }
+      return null;
+    }
+  }
+
+  async evaluate_rank_data(http_client) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/tomarket-game/v1/rank/evaluate`
+      );
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        logger.warning(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>evaluate rank data:</b> ${error?.response?.data?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>evaluate rank data:</b>: ${error.message}`
+        );
+      }
+      return null;
+    }
+  }
+
+  async create_rank_data(http_client) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/tomarket-game/v1/rank/create`
+      );
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        logger.warning(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>create rank:</b> ${error?.response?.data?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>create rank:</b>: ${error.message}`
+        );
+      }
+      return null;
+    }
+  }
+
+  async upgrade_rank(http_client, data) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/tomarket-game/v1/rank/upgrade`,
+        JSON.stringify(data)
+      );
+      return response.data;
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        logger.warning(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>upgrade rank:</b> ${error?.response?.data?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error while <b>upgrade rank:</b>: ${error.message}`
         );
       }
       return null;

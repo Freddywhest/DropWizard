@@ -14,6 +14,7 @@ const path = require("path");
 const moment = require("moment");
 const _isArray = require("../../../../utils/_isArray");
 const { HttpsProxyAgent } = require("https-proxy-agent");
+const FdyTmp = require("fdy-tmp");
 
 class Tapper {
   constructor(tg_client, bot_name) {
@@ -112,15 +113,55 @@ class Tapper {
 
   async #get_tg_web_data() {
     try {
-      await this.tg_client.start();
+      const tmp = new FdyTmp({
+        fileName: `${this.bot_name}.fdy.tmp`,
+        tmpPath: path.join(process.cwd(), "cache/queries"),
+      });
       const platform = this.#get_platform(this.#get_user_agent());
+      if (tmp.hasJsonElement(this.session_name)) {
+        const queryStringFromCache = tmp.getJson(this.session_name);
+        if (!_.isEmpty(queryStringFromCache)) {
+          const jsonData = {
+            initData: queryStringFromCache,
+            platform,
+          };
+
+          const va_hc = axios.create({
+            headers: this.headers,
+            withCredentials: true,
+          });
+
+          const validate = await this.api.validate_query_id(va_hc, jsonData);
+
+          if (validate) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🔄 Getting data from cache...`
+            );
+            if (this.tg_client.connected) {
+              await this.tg_client.disconnect();
+              await this.tg_client.destroy();
+            }
+            await sleep(5);
+            return jsonData;
+          } else {
+            tmp.deleteJsonElement(this.session_name);
+          }
+        }
+      }
+      await this.tg_client.connect();
+      await this.tg_client.start();
+
+      if (!this.bot) {
+        this.bot = await this.tg_client.getInputEntity(app.bot);
+      }
+
       if (!this.runOnce) {
         logger.info(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
         );
         const botHistory = await this.tg_client.invoke(
           new Api.messages.GetHistory({
-            peer: app.bot,
+            peer: this.bot,
             limit: 10,
           })
         );
@@ -130,25 +171,39 @@ class Tapper {
               message: "/start",
               silent: true,
               noWebpage: true,
-              peer: app.bot,
+              peer: this.bot,
             })
           );
         }
       }
 
-      await sleep(10);
+      await sleep(5);
 
       const result = await this.tg_client.invoke(
         new Api.messages.RequestWebView({
-          peer: app.bot,
-          bot: app.bot,
+          peer: this.bot,
+          bot: this.bot,
           platform,
           from_bot_menu: true,
           url: app.webviewUrl,
         })
       );
+
       const authUrl = result.url;
       const tgWebData = authUrl.split("#", 2)[1];
+      logger.info(
+        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💾 Storing data in cache...`
+      );
+
+      await sleep(5);
+
+      tmp
+        .addJson(
+          this.session_name,
+          decodeURIComponent(this.#clean_tg_web_data(tgWebData))
+        )
+        .save();
+
       const json = {
         initData: decodeURIComponent(this.#clean_tg_web_data(tgWebData)),
         platform,
@@ -188,17 +243,16 @@ class Tapper {
       }
       return null;
     } finally {
-      /* if (this.tg_client.connected) {
+      if (this.tg_client.connected) {
+        await this.tg_client.disconnect();
         await this.tg_client.destroy();
-      } */
-      await sleep(1);
-      if (!this.runOnce) {
-        logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
-        );
       }
-
       this.runOnce = true;
+      if (this.sleep_floodwait > new Date().getTime() / 1000) {
+        await sleep(this.sleep_floodwait - new Date().getTime() / 1000);
+        return await this.#get_tg_web_data();
+      }
+      await sleep(3);
     }
   }
 
@@ -211,10 +265,17 @@ class Tapper {
 
       return response.data;
     } catch (error) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
-      );
+      if (error?.response?.data?.error?.message) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error?.response?.data?.error?.message}`
+        );
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
+        );
+      }
       await sleep(3); // 3 seconds delay
+      return null;
     }
   }
 

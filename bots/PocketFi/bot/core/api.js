@@ -1,5 +1,6 @@
 const app = require("../config/app");
 const logger = require("../../../../utils/logger");
+var _ = require("lodash");
 
 class ApiRequest {
   constructor(session_name, bot_name) {
@@ -14,6 +15,8 @@ class ApiRequest {
       );
       return response?.data;
     } catch (error) {
+      console.log(error);
+
       if (error?.response?.data?.message) {
         logger.warning(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ⚠️ Error while getting mining: ${error?.response?.data?.message}`
@@ -25,6 +28,25 @@ class ApiRequest {
       }
 
       return null;
+    }
+  }
+
+  async validate_query_id(http_client) {
+    try {
+      const response = await http_client.get(
+        `${app.apiUrl}/mining/getUserMining`
+      );
+
+      if (!_.isEmpty(response?.data)) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (_.isEmpty(error?.response?.data) || error?.response?.status == 403) {
+        return false;
+      }
+
+      throw error;
     }
   }
 

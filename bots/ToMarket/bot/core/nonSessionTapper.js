@@ -114,12 +114,29 @@ class NonSessionTapper {
         JSON.stringify(tgWebData)
       );
 
+      if (
+        response?.data?.status === 400 ||
+        response?.data?.message?.toLowerCase()?.includes("invalid init data")
+      ) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️ Error while getting Access Token: Invalid init data signature`
+        );
+        return null;
+      }
       return response.data;
     } catch (error) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
-      );
-      await sleep(3); // 3 seconds delay
+      if (error?.response?.status > 499) {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Server Error, retrying again after sleep...`
+        );
+        await sleep(1);
+        return null;
+      } else {
+        logger.error(
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error}`
+        );
+        await sleep(3); // 3 seconds delay
+      }
     }
   }
 
@@ -185,10 +202,26 @@ class NonSessionTapper {
         const currentTime = _.floor(Date.now() / 1000);
         if (currentTime - access_token_created_time >= 3600) {
           const tg_web_data = await this.#get_tg_web_data();
+          if (
+            _.isNull(tg_web_data) ||
+            _.isUndefined(tg_web_data) ||
+            !tg_web_data ||
+            _.isEmpty(tg_web_data)
+          ) {
+            continue;
+          }
           const get_token = await this.#get_access_token(
             tg_web_data,
             http_client
           );
+          if (
+            _.isNull(get_token) ||
+            _.isUndefined(get_token) ||
+            !get_token ||
+            _.isEmpty(get_token)
+          ) {
+            continue;
+          }
           http_client.defaults.headers[
             "authorization"
           ] = `${get_token?.data?.access_token}`;

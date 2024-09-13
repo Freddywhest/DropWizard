@@ -127,9 +127,9 @@ class NonSessionTapper {
 
       return response.data;
     } catch (error) {
-      if (error?.response?.data) {
+      if (error?.response?.data?.error?.message) {
         logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: Invalid or expired query id`
+          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error while getting Access Token: ${error?.response?.data?.error?.message}`
         );
       } else {
         logger.error(
@@ -137,6 +137,7 @@ class NonSessionTapper {
         );
       }
       await sleep(3); // 3 seconds delay
+      return null;
     }
   }
 

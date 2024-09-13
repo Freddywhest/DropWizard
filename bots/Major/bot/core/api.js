@@ -199,7 +199,7 @@ class ApiRequest {
         (error?.response?.status >= 500 && error?.response?.status <= 599) ||
         error?.response?.status == 400
       ) {
-        return null;
+        return error?.response?.status;
       }
       if (error?.response?.data?.message) {
         logger.warning(
@@ -212,6 +212,34 @@ class ApiRequest {
       }
 
       return null;
+    }
+  }
+
+  async validate_query_id(http_client, data) {
+    try {
+      const response = await http_client.post(
+        `${app.apiUrl}/api/auth/tg/`,
+        JSON.stringify(data)
+      );
+
+      if (!_.isEmpty(response?.data)) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (error?.response?.status >= 500) {
+        return "server";
+      }
+      if (
+        error?.response?.data?.message
+          ?.toLowerCase()
+          ?.includes("invalid init data signature") ||
+        error?.response?.status == 401
+      ) {
+        return false;
+      }
+
+      throw error;
     }
   }
 

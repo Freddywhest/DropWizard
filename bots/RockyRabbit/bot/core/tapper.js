@@ -14,8 +14,8 @@ const upgradeTabCardsBuying = require("../scripts/upgradeTabCardsBuying");
 const upgradeNoConditionCards = require("../scripts/upgradeNoConditionCards");
 const path = require("path");
 const _isArray = require("../../../../utils/_isArray");
-const { HttpsProxyAgent } = require("https-proxy-agent");
 const fdy = require("fdy-scraping");
+const FdyTmp = require("fdy-tmp");
 
 class Tapper {
   constructor(tg_client, bot_name) {
@@ -28,6 +28,7 @@ class Tapper {
     this.api = new ApiRequest(this.session_name, this.bot_name);
     this.sleep_floodwait = 0;
     this.runOnce = false;
+    this.bot = null;
   }
 
   #load_session_data() {
@@ -100,15 +101,50 @@ class Tapper {
 
   async #get_tg_web_data() {
     try {
+      const tmp = new FdyTmp({
+        fileName: `${this.bot_name}.fdy.tmp`,
+        tmpPath: path.join(process.cwd(), "cache/queries"),
+      });
+      if (tmp.hasJsonElement(this.session_name)) {
+        const queryStringFromCache = tmp.getJson(this.session_name);
+        if (!_.isEmpty(queryStringFromCache)) {
+          this.headers["authorization"] = `tma ${queryStringFromCache}`;
+          const va_hc = fdy.create({
+            headers: this.headers,
+          });
+
+          const validate = await this.api.validate_query_id(va_hc);
+
+          if (validate) {
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🔄 Getting data from cache...`
+            );
+            if (this.tg_client.connected) {
+              await this.tg_client.disconnect();
+              await this.tg_client.destroy();
+            }
+            await sleep(5);
+            return queryStringFromCache;
+          } else {
+            tmp.deleteJsonElement(this.session_name);
+          }
+        }
+      }
+      await this.tg_client.connect();
       await this.tg_client.start();
       const platform = this.#get_platform(this.#get_user_agent());
+
+      if (!this.bot) {
+        this.bot = await this.tg_client.getInputEntity(app.bot);
+      }
+
       if (!this.runOnce) {
         logger.info(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 📡 Waiting for authorization...`
         );
         const botHistory = await this.tg_client.invoke(
           new Api.messages.GetHistory({
-            peer: app.bot,
+            peer: this.bot,
             limit: 10,
           })
         );
@@ -118,18 +154,18 @@ class Tapper {
               message: "/start",
               silent: true,
               noWebpage: true,
-              peer: app.bot,
+              peer: this.bot,
             })
           );
         }
       }
 
-      await sleep(_.random(5, 10));
+      await sleep(5);
 
       const result = await this.tg_client.invoke(
         new Api.messages.RequestWebView({
-          peer: app.bot,
-          bot: app.bot,
+          peer: this.bot,
+          bot: this.bot,
           platform,
           from_bot_menu: true,
           url: app.webviewUrl,
@@ -138,7 +174,18 @@ class Tapper {
 
       const authUrl = result.url;
       const tgWebData = authUrl.split("#", 2)[1];
+      logger.info(
+        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 💾 Storing data in cache...`
+      );
 
+      await sleep(5);
+
+      tmp
+        .addJson(
+          this.session_name,
+          decodeURIComponent(this.#clean_tg_web_data(tgWebData))
+        )
+        .save();
       return decodeURIComponent(this.#clean_tg_web_data(tgWebData));
     } catch (error) {
       if (error.message.includes("AUTH_KEY_DUPLICATED")) {
@@ -174,14 +221,16 @@ class Tapper {
       }
       return null;
     } finally {
-      await sleep(1);
-      if (!this.runOnce) {
-        logger.info(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | 🚀 Starting session...`
-        );
+      if (this.tg_client.connected) {
+        await this.tg_client.disconnect();
+        await this.tg_client.destroy();
       }
-
       this.runOnce = true;
+      if (this.sleep_floodwait > new Date().getTime() / 1000) {
+        await sleep(this.sleep_floodwait - new Date().getTime() / 1000);
+        return await this.#get_tg_web_data();
+      }
+      await sleep(3);
     }
   }
 
@@ -193,22 +242,15 @@ class Tapper {
         `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Proxy IP: ${ip}`
       );
     } catch (error) {
-      if (
-        error.message.includes("ENOTFOUND") ||
-        error.message.includes("getaddrinfo") ||
-        error.message.includes("ECONNREFUSED")
-      ) {
-        logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error: Unable to resolve the proxy address. The proxy server at ${proxy.ip}:${proxy.port} could not be found. Please check the proxy address and your network connection.`
-        );
-        logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | No proxy will be used.`
-        );
-      } else {
-        logger.error(
-          `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Proxy: ${proxy.ip}:${proxy.port} | Error: ${error.message}`
-        );
-      }
+      logger.error(
+        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error: Unable to resolve the proxy address. The proxy server at ${proxy?.ip}:${proxy?.port} could not be found. Please check the proxy address and your network connection.`
+      );
+      logger.error(
+        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | No proxy will be used.`
+      );
+      logger.error(
+        `<ye>[${this.bot_name}]</ye> | ${this.session_name} | Error message: ${error?.message}`
+      );
 
       return false;
     }
@@ -227,7 +269,6 @@ class Tapper {
     let exceeded_energy = 0;
     let exceeded_turbo = 0;
     let sleep_empty_energy = 0;
-    let checked_channel = false;
 
     if (settings.USE_PROXY_FROM_FILE && proxy) {
       http_client = fdy.create({
@@ -245,14 +286,16 @@ class Tapper {
         headers: this.headers,
       });
     }
+
     while (true) {
       try {
         const currentTime = _.floor(Date.now() / 1000);
-        if (currentTime - access_token_created_time >= 3600) {
+        if (currentTime - access_token_created_time >= 14400) {
           http_client.defaults.headers["sec-ch-ua-platform"] =
             this.#get_platform(this.#get_user_agent());
 
           const tg_web_data = await this.#get_tg_web_data();
+
           if (
             _.isNull(tg_web_data) ||
             _.isUndefined(tg_web_data) ||
@@ -265,10 +308,10 @@ class Tapper {
           http_client.defaults.headers["authorization"] = `tma ${tg_web_data}`;
 
           access_token_created_time = currentTime;
-          await sleep(2);
+          await sleep(5);
         }
         // Get profile data
-        profile_data = await this.api.get_user_data(http_client);
+        profile_data = await this.api.get_user_data(http_client, this.headers);
         boosts_list = await this.api.get_boosts(http_client);
         tasks_list = await this.api.tasks(http_client);
         config = await this.api.config(http_client);
@@ -295,7 +338,7 @@ class Tapper {
           continue;
         }
 
-        await sleep(1);
+        await sleep(2);
 
         if (profile_data?.clicker?.lastPassiveEarn > 0) {
           logger.info(
@@ -311,19 +354,16 @@ class Tapper {
             typeof reward_data === "string" &&
             reward_data.includes("not_subscribed")
           ) {
-            if (!checked_channel) {
-              checked_channel = true;
-              logger.info(
-                `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Joining RockyRabit channel before claiming daily reward...`
-              );
-              /* await this.tg_client.invoke(
-                new Api.channels.JoinChannel({
-                  channel: await this.tg_client.getInputEntity(
-                    app.rockyRabitChannel
-                  ),
-                })
-              ); */
-            }
+            logger.info(
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Joining RockyRabit channel before claiming daily reward...`
+            );
+            await this.tg_client.invoke(
+              new Api.channels.JoinChannel({
+                channel: await this.tg_client.getInputEntity(
+                  app.rockyRabitChannel
+                ),
+              })
+            );
             continue;
           } else if (
             typeof reward_data === "string" &&
@@ -790,7 +830,7 @@ class Tapper {
           );
         }
       } catch (error) {
-        //traceback(error);
+        // traceback(error);
         logger.error(
           `<ye>[${this.bot_name}]</ye> | ${this.session_name} | ❗️Unknown error: ${error}}`
         );
@@ -805,7 +845,6 @@ class Tapper {
               settings.SLEEP_BETWEEN_TAP[0],
               settings.SLEEP_BETWEEN_TAP[1]
             );
-            ran_sleep;
           } else {
             ran_sleep = _.random(450, 800);
           }

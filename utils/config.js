@@ -20,9 +20,6 @@ const settings = {
   TIMEFARM: process.env.TIMEFARM
     ? process.env.TIMEFARM.toLowerCase() === "true"
     : true,
-  LOSTDOGS: process.env.LOSTDOGS
-    ? process.env.LOSTDOGS.toLowerCase() === "true"
-    : true,
   POCKETFI: process.env.POCKETFI
     ? process.env.POCKETFI.toLowerCase() === "true"
     : true,
@@ -38,9 +35,6 @@ const settings = {
     : false,
   USE_QUERY_ID_DOTCOIN: process.env.USE_QUERY_ID_DOTCOIN
     ? process.env.USE_QUERY_ID_DOTCOIN.toLowerCase() === "true"
-    : false,
-  USE_QUERY_ID_LOSTDOGS: process.env.USE_QUERY_ID_LOSTDOGS
-    ? process.env.USE_QUERY_ID_LOSTDOGS.toLowerCase() === "true"
     : false,
   USE_QUERY_ID_TIMEFARM: process.env.USE_QUERY_ID_TIMEFARM
     ? process.env.USE_QUERY_ID_TIMEFARM.toLowerCase() === "true"

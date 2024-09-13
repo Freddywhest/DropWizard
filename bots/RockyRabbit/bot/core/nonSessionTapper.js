@@ -1,4 +1,3 @@
-const { default: axios } = require("axios");
 const logger = require("../../../../utils/logger");
 const headers = require("./header");
 const settings = require("../config/config");
@@ -14,7 +13,7 @@ const upgradeTabCardsBuying = require("../scripts/upgradeTabCardsBuying");
 const upgradeNoConditionCards = require("../scripts/upgradeNoConditionCards");
 const path = require("path");
 const _isArray = require("../../../../utils/_isArray");
-const { HttpsProxyAgent } = require("https-proxy-agent");
+const fdy = require("fdy-scraping");
 
 class NonSessionTapper {
   constructor(query_id, query_name, bot_name) {
@@ -86,26 +85,6 @@ class NonSessionTapper {
     return "Unknown";
   }
 
-  #proxy_agent(proxy) {
-    try {
-      if (!proxy) return null;
-      let proxy_url;
-      if (!proxy.password && !proxy.username) {
-        proxy_url = `${proxy.protocol}://${proxy.ip}:${proxy.port}`;
-      } else {
-        proxy_url = `${proxy.protocol}://${proxy.username}:${proxy.password}@${proxy.ip}:${proxy.port}`;
-      }
-      return new HttpsProxyAgent(proxy_url);
-    } catch (e) {
-      logger.error(
-        `<ye>[${this.bot_name}]</ye> | ${
-          this.session_name
-        } | Proxy agent error: ${e}\nProxy: ${JSON.stringify(proxy, null, 2)}`
-      );
-      return null;
-    }
-  }
-
   async #check_proxy(http_client, proxy) {
     try {
       const response = await http_client.get("https://httpbin.org/ip");
@@ -167,6 +146,7 @@ class NonSessionTapper {
     while (true) {
       try {
         const currentTime = _.floor(Date.now() / 1000);
+
         http_client.defaults.headers["sec-ch-ua-platform"] = this.#get_platform(
           this.#get_user_agent()
         );
@@ -218,9 +198,8 @@ class NonSessionTapper {
             reward_data.includes("not_subscribed")
           ) {
             logger.info(
-              `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Joining RockyRabit channel before claiming daily reward...`
+              `<ye>[${this.bot_name}]</ye> | ${this.session_name} |⌛Join RockyRabit channel before daily reward can be claim. Skipping daily reward claim...`
             );
-            continue;
           } else if (
             typeof reward_data === "string" &&
             reward_data.includes("claimed")

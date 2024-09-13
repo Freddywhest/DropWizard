@@ -1,6 +1,7 @@
 const app = require("../config/app");
 const logger = require("../../../../utils/logger");
 const sleep = require("../../../../utils/sleep");
+var _ = require("lodash");
 
 class ApiRequest {
   constructor(session_name, bot_name) {
@@ -31,6 +32,32 @@ class ApiRequest {
         }`
       );
       await sleep(3); // Sleep for 3 seconds
+    }
+  }
+
+  async validate_query_id(http_client, data, bearer) {
+    try {
+      http_client.defaults.headers["authorization"] = `Bearer ${bearer}`;
+      const response = await http_client.post(
+        `${app.apiUrl}/functions/v1/getToken`,
+        JSON.stringify(data)
+      );
+
+      if (!_.isEmpty(response?.data)) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (
+        error?.response?.data?.message
+          ?.toLowerCase()
+          ?.includes("invalid signature error") ||
+        error?.response?.status == 400
+      ) {
+        return false;
+      }
+
+      throw error;
     }
   }
 
